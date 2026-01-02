@@ -218,6 +218,27 @@ function init_database() {
         error_log("Failed to create invoice_items table: " . mysqli_error($conn));
         throw new Exception("Failed to create invoice_items table: " . mysqli_error($conn));
     }
+
+    // Telescope Logs table
+    $telescope_sql = "CREATE TABLE IF NOT EXISTS telescope (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT DEFAULT NULL,
+        operation VARCHAR(20) NOT NULL,
+        table_name VARCHAR(50) NOT NULL,
+        record_id INT DEFAULT NULL,
+        old_values JSON DEFAULT NULL,
+        new_values JSON DEFAULT NULL,
+        ip_address VARCHAR(45),
+        user_agent VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $telescope_sql)) {
+        error_log("Failed to create telescope table: " . mysqli_error($conn));
+        throw new Exception("Failed to create telescope table: " . mysqli_error($conn));
+    }
+
     
     // Migrations for existing tables
     // Update products table
@@ -421,5 +442,29 @@ try {
     // Re-throw so api.php can catch it
     throw $e;
 }
+
+/**
+ * Log a system operation in the telescope table
+ */
+function log_operation($operation, $table_name, $record_id = null, $old_values = null, $new_values = null) {
+    try {
+        $conn = get_db_connection();
+        $user_id = $_SESSION['user_id'] ?? null;
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+        $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
+        
+        $old_json = $old_values ? json_encode($old_values, JSON_UNESCAPED_UNICODE) : null;
+        $new_json = $new_values ? json_encode($new_values, JSON_UNESCAPED_UNICODE) : null;
+        
+        $sql = "INSERT INTO telescope (user_id, operation, table_name, record_id, old_values, new_values, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "ississss", $user_id, $operation, $table_name, $record_id, $old_json, $new_json, $ip, $ua);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+    } catch (Exception $e) {
+        error_log("Telescope logging failed: " . $e->getMessage());
+    }
+}
+
 ?>
 

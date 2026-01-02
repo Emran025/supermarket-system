@@ -47,9 +47,12 @@ class CategoriesController extends Controller {
 
         
         if (mysqli_stmt_execute($stmt)) {
-            $this->successResponse(['id' => mysqli_insert_id($this->conn)]);
+            $cat_id = mysqli_insert_id($this->conn);
+            log_operation('CREATE', 'categories', $cat_id, null, $data);
+            $this->successResponse(['id' => $cat_id]);
         } else {
             $this->errorResponse(mysqli_error($this->conn));
         }
+
     }
 }

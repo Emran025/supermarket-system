@@ -104,10 +104,13 @@ class UsersController extends Controller {
 
         
         if (mysqli_stmt_execute($stmt)) {
-            $this->successResponse(['id' => mysqli_insert_id($this->conn)]);
+            $new_user_id = mysqli_insert_id($this->conn);
+            log_operation('CREATE', 'users', $new_user_id, null, ['username' => $username, 'role' => $role]);
+            $this->successResponse(['id' => $new_user_id]);
         } else {
             $this->errorResponse(mysqli_error($this->conn));
         }
+
     }
 
     private function updateUser() {
@@ -164,10 +167,12 @@ class UsersController extends Controller {
         mysqli_stmt_bind_param($stmt, $types, ...$params);
         
         if (mysqli_stmt_execute($stmt)) {
+            log_operation('UPDATE', 'users', $id, null, $data);
             $this->successResponse();
         } else {
             $this->errorResponse(mysqli_error($this->conn));
         }
+
     }
 
     private function changePassword() {

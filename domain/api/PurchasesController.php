@@ -95,7 +95,9 @@ class PurchasesController extends Controller {
             mysqli_stmt_close($stmt);
             
             mysqli_commit($this->conn);
+            log_operation('CREATE', 'purchases', $purchase_id, null, $data);
             $this->successResponse(['id' => $purchase_id, 'new_unit_price' => $new_unit_price]);
+
         } catch (Exception $e) {
             mysqli_rollback($this->conn);
             $this->errorResponse($e->getMessage());
@@ -173,7 +175,9 @@ class PurchasesController extends Controller {
             }
             
             mysqli_commit($this->conn);
+            log_operation('UPDATE', 'purchases', $id, null, $data);
             $this->successResponse();
+
         } catch (Exception $e) {
             mysqli_rollback($this->conn);
             $this->errorResponse($e->getMessage());
@@ -210,7 +214,9 @@ class PurchasesController extends Controller {
             }
             
             mysqli_commit($this->conn);
+            log_operation('DELETE', 'purchases', $id);
             $this->successResponse();
+
         } catch (Exception $e) {
             mysqli_rollback($this->conn);
             $this->errorResponse($e->getMessage());

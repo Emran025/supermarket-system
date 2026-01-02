@@ -31,16 +31,23 @@ class AuthController extends Controller {
         
         $result = login($username, $password);
         if ($result['success']) {
+            log_operation('LOGIN', 'users', $_SESSION['user_id']);
             $this->successResponse([], 'Login successful');
         } else {
             $this->errorResponse($result['message'], 401);
         }
+
     }
 
     private function logout() {
         $this->requireMethod('POST');
+        $user_id = $_SESSION['user_id'] ?? null;
         destroy_session();
+        if ($user_id) {
+            log_operation('LOGOUT', 'users', $user_id);
+        }
         $this->successResponse();
+
     }
 
     private function check() {

@@ -120,7 +120,9 @@ class SalesController extends Controller {
             }
             
             mysqli_commit($this->conn);
+            log_operation('CREATE', 'invoices', $invoice_id, null, $data);
             $this->successResponse(['id' => $invoice_id, 'invoice_number' => $invoice_number]);
+
         } catch (Exception $e) {
             mysqli_rollback($this->conn);
             $this->errorResponse($e->getMessage());
@@ -162,7 +164,9 @@ class SalesController extends Controller {
             }
             
             mysqli_commit($this->conn);
+            log_operation('DELETE', 'invoices', $id);
             $this->successResponse();
+
         } catch (Exception $e) {
             mysqli_rollback($this->conn);
             $this->errorResponse($e->getMessage());

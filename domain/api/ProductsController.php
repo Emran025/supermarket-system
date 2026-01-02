@@ -80,10 +80,13 @@ class ProductsController extends Controller {
 
         
         if (mysqli_stmt_execute($stmt)) {
-            $this->successResponse(['id' => mysqli_insert_id($this->conn)]);
+            $product_id = mysqli_insert_id($this->conn);
+            log_operation('CREATE', 'products', $product_id, null, $data);
+            $this->successResponse(['id' => $product_id]);
         } else {
             $this->errorResponse(mysqli_error($this->conn));
         }
+
     }
 
     private function updateProduct() {
@@ -104,10 +107,12 @@ class ProductsController extends Controller {
         mysqli_stmt_bind_param($stmt, "sssddisisi", $name, $description, $category, $unit_price, $min_margin, $stock, $unit_name, $items_per_unit, $sub_unit_name, $id);
         
         if (mysqli_stmt_execute($stmt)) {
+            log_operation('UPDATE', 'products', $id, null, $data);
             $this->successResponse();
         } else {
             $this->errorResponse(mysqli_error($this->conn));
         }
+
     }
 
     private function deleteProduct() {
@@ -117,9 +122,11 @@ class ProductsController extends Controller {
         mysqli_stmt_bind_param($stmt, "i", $id);
         
         if (mysqli_stmt_execute($stmt)) {
+            log_operation('DELETE', 'products', $id);
             $this->successResponse();
         } else {
             $this->errorResponse(mysqli_error($this->conn));
         }
+
     }
 }

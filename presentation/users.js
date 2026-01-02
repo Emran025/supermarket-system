@@ -159,7 +159,7 @@ function renderUsers() {
 
   if (users.length === 0) {
     tbody.innerHTML =
-      '<tr><td colspan="6" class="text-center">لا توجد مستخدمين</td></tr>';
+      '<tr><td colspan="7" class="text-center">لا يوجد مستخدمين</td></tr>';
     return;
   }
 
@@ -167,8 +167,9 @@ function renderUsers() {
     const row = document.createElement("tr");
     const roleBadge =
       u.role === "admin"
-        ? '<span class="badge badge-primary">Admin</span>'
-        : '<span class="badge badge-secondary">Sales</span>';
+        ? '<span class="badge badge-primary">مدير النظام</span>'
+        : '<span class="badge badge-secondary">مبيعات</span>';
+
     const statusBadge =
       u.is_active == 1
         ? '<span class="badge badge-success">نشط</span>'
@@ -182,6 +183,9 @@ function renderUsers() {
             <td>${managerName}</td>
             <td>${statusBadge}</td>
             <td>${formatDate(u.created_at)}</td>
+            <td><span class="badge badge-secondary">${
+              u.creator_name || "النظام"
+            }</span></td>
             <td>
                 <button class="btn btn-sm btn-secondary" onclick="openEditModal(${
                   u.id
@@ -189,6 +193,7 @@ function renderUsers() {
                     <i class="fas fa-edit"></i> تعديل
                 </button>
             </td>
+
         `;
     tbody.appendChild(row);
   });
