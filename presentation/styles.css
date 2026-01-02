@@ -1013,6 +1013,10 @@ tbody tr:hover {
 .toast.error {
   background: #991b1b;
 }
+.toast.info {
+  background: #0369a1;
+}
+
 
 /* Modal Styles */
 .modal {

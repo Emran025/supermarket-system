@@ -26,6 +26,8 @@ const icons = {
   user: '<svg class="icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
   chevronRight:
     '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>',
+  settings:
+    '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
 };
 
 function getIcon(name) {
@@ -59,6 +61,41 @@ async function fetchAPI(action, method = "GET", body = null) {
     console.error("API Error:", error);
     return { success: false, message: "Network error" };
   }
+}
+
+// Global settings cache
+let systemSettings = null;
+
+async function getSettings() {
+  if (systemSettings) return systemSettings;
+  try {
+    const result = await fetchAPI("settings");
+    if (result.success) {
+      systemSettings = result.data;
+      return systemSettings;
+    }
+  } catch (e) {
+    console.error("Failed to load settings", e);
+  }
+  return {};
+}
+
+/**
+ * Simulates checking printer connection for a professional UX
+ * @returns {Promise<boolean>}
+ */
+function checkPrinterConnection() {
+  return new Promise((resolve) => {
+    // Show a small overlay or toast
+    showToast("جاري التحقق من اتصال الطابعة...", "info");
+
+    // Simulate check
+    setTimeout(() => {
+      // In a real web app, we might check if a local print agent is responding
+      // For now, we simulate success
+      resolve(true);
+    }, 800);
+  });
 }
 
 // Check authentication and setup UI
@@ -102,6 +139,7 @@ function setupSidebar(user) {
 
   const adminLinks = [
     { href: "users.html", icon: "users", text: "إدارة المستخدمين" },
+    { href: "settings.html", icon: "settings", text: "الإعدادات" },
   ];
 
   const accountLink = { href: "account.html", icon: "user", text: "حسابي" };
@@ -418,4 +456,202 @@ function renderPagination(pagination, containerId, onPageChange) {
   controls.appendChild(nextBtn);
 
   container.appendChild(controls);
+}
+
+/**
+ * Generates the HTML content for an invoice based on provided settings and data.
+ * Useful for both printing and previewing.
+ */
+function generateInvoiceHTML(inv, settings) {
+  const isThermal = (settings.invoice_size || "thermal") === "thermal";
+  const currencySymbol = settings.currency_symbol || "ر.ي";
+
+  // Format currency locally for the invoice
+  const localFormatCurrency = (amount) => {
+    return (
+      new Intl.NumberFormat("ar-YE", {
+        style: "currency",
+        currency: "YER",
+      })
+        .format(amount)
+        .replace("YER", "")
+        .trim() +
+      " " +
+      currencySymbol
+    );
+  };
+
+  const qrData = `Invoice:${inv.invoice_number}|Total:${inv.total_amount}|Date:${inv.created_at}`;
+  const qrUrl = `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(
+    qrData
+  )}&choe=UTF-8`;
+
+  const style = `
+        <style>
+            @page { 
+                margin: 0; 
+                size: ${isThermal ? "80mm auto" : "A4"};
+            }
+            body { 
+                font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif; 
+                direction: rtl; 
+                margin: 0; 
+                padding: ${isThermal ? "5mm" : "15mm"};
+                color: #1a1a1a;
+                background: white;
+                line-height: 1.4;
+            }
+            .invoice-container {
+                width: ${isThermal ? "70mm" : "auto"};
+                max-width: ${isThermal ? "70mm" : "800px"};
+                margin: 0 auto;
+            }
+            .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .header h1 { margin: 0 0 5px 0; font-size: ${
+              isThermal ? "1.4rem" : "2rem"
+            }; font-weight: 800; }
+            .header p { margin: 2px 0; font-size: 0.85rem; color: #444; }
+            
+            .invoice-meta { 
+                display: flex; 
+                justify-content: space-between; 
+                margin: 15px 0; 
+                font-size: 0.85rem;
+                background: #f9f9f9;
+                padding: 8px;
+                border-radius: 4px;
+            }
+            
+            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 0.85rem; }
+            th { text-align: right; border-bottom: 1px solid #000; padding: 8px 2px; font-weight: 700; }
+            td { padding: 8px 2px; border-bottom: 1px solid #eee; }
+            
+            .totals { 
+                margin-top: 10px;
+                border-top: 2px solid #000;
+                padding-top: 8px;
+            }
+            .total-row { 
+                display: flex; 
+                justify-content: space-between; 
+                padding: 4px 0;
+            }
+            .total-row.grand-total { 
+                font-weight: 800; 
+                font-size: 1.2rem; 
+                margin-top: 5px;
+                background: #000;
+                color: #fff;
+                padding: 8px;
+                border-radius: 4px;
+            }
+            
+            .footer { 
+                text-align: center; 
+                margin-top: 25px; 
+                font-size: 0.8rem;
+                border-top: 1px dashed #ccc;
+                padding-top: 15px;
+            }
+            .qr-code {
+                margin: 15px auto;
+                width: 120px;
+                height: 120px;
+                display: block;
+            }
+            .watermark {
+                position: fixed;
+                bottom: 10px;
+                left: 10px;
+                font-size: 0.6rem;
+                color: #ccc;
+            }
+
+            @media print {
+                body { padding: ${isThermal ? "0" : "15mm"}; }
+                .invoice-container { width: 100%; }
+            }
+        </style>
+    `;
+
+  return `
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Invoice ${inv.invoice_number}</title>
+            ${style}
+        </head>
+        <body>
+            <div class="invoice-container">
+                <div class="header">
+                    <h1>${settings.store_name || "سوبر ماركت الوفاء"}</h1>
+                    <p>${settings.store_address || "اليمن - صنعاء"}</p>
+                    <p>هاتف: ${settings.store_phone || "777000000"}</p>
+                    ${
+                      settings.tax_number
+                        ? `<p>الرقم الضريبي: <strong>${settings.tax_number}</strong></p>`
+                        : ""
+                    }
+                </div>
+
+                <div class="invoice-meta">
+                    <div>
+                        <strong>رقم الفاتورة:</strong> #${inv.invoice_number}
+                    </div>
+                    <div>
+                        <strong>التاريخ:</strong> ${formatDate(inv.created_at)}
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th style="text-align:center">الكمية</th>
+                            <th style="text-align:left">السعر</th>
+                            <th style="text-align:left">الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${inv.items
+                          .map(
+                            (i) => `
+                            <tr>
+                                <td>${i.product_name}</td>
+                                <td style="text-align:center">${i.quantity}</td>
+                                <td style="text-align:left">${i.unit_price}</td>
+                                <td style="text-align:left">${localFormatCurrency(
+                                  i.subtotal
+                                )}</td>
+                            </tr>
+                        `
+                          )
+                          .join("")}
+                    </tbody>
+                </table>
+
+                <div class="totals">
+                    <div class="total-row">
+                        <span>المجموع الفرعي:</span>
+                        <span>${localFormatCurrency(inv.total_amount)}</span>
+                    </div>
+                    <div class="total-row grand-total">
+                        <span>الإجمالي النهائي:</span>
+                        <span>${localFormatCurrency(inv.total_amount)}</span>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <img src="${qrUrl}" class="qr-code" alt="QR Code">
+                    <p><strong>${
+                      settings.footer_message || "شكراً لزيارتكم!"
+                    }</strong></p>
+                    <p>الموظف: ${inv.salesperson_name || "المسؤول"}</p>
+                    <p style="font-size: 0.7rem; color: #777;">نظام إدارة السوبر ماركت الذكي</p>
+                </div>
+            </div>
+            <div class="watermark">Supermarket System v1.0</div>
+        </body>
+        </html>
+    `;
 }

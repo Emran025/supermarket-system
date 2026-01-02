@@ -31,6 +31,8 @@ try {
     require_once 'api/CategoriesController.php';
     require_once 'api/UsersController.php';
     require_once 'api/DashboardController.php';
+    require_once 'api/SettingsController.php';
+
 
 } catch (Exception $e) {
     http_response_code(500);
@@ -93,6 +95,10 @@ try {
     
     // Dashboard
     $router->register('dashboard', 'DashboardController');
+    
+    // Settings
+    $router->register('settings', 'SettingsController');
+
     
     $router->dispatch();
 

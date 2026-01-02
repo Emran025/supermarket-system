@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>إعدادات النظام | نظام السوبر ماركت</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/button.min.css"
+    />
+  </head>
+  <body>
+    <div class="main-container">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo-circle">🛒</div>
+          <h2>السوبر ماركت</h2>
+        </div>
+        <nav class="sidebar-nav">
+          <!-- Dynamically injected by common.js -->
+        </nav>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <div class="header-title">
+            <h1>إعدادات النظام</h1>
+            <p>تخصيص معلومات المتجر وطباعة الفواتير</p>
+          </div>
+          <div class="header-actions">
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-left: 15px;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span id="userRoleBadge" class="badge"></span>
+            </div>
+            <button
+              class="btn btn-secondary"
+              id="preview-invoice-btn"
+              style="margin-left: 10px"
+            >
+              <i class="fas fa-eye"></i> معاينة الفاتورة
+            </button>
+            <button class="btn btn-primary" id="save-settings-btn">
+              حفظ التغييرات
+            </button>
+          </div>
+        </header>
+
+        <div id="alert-container"></div>
+
+        <div class="settings-grid">
+          <div class="section-card">
+            <div class="section-header">
+              <h3>بيانات المتجر</h3>
+            </div>
+            <div class="settings-form">
+              <div class="form-group">
+                <label for="store_name">اسم المتجر</label>
+                <input
+                  type="text"
+                  id="store_name"
+                  placeholder="مثلاً: سوبر ماركت الوفاء"
+                />
+              </div>
+              <div class="form-group">
+                <label for="store_address">العنوان</label>
+                <input
+                  type="text"
+                  id="store_address"
+                  placeholder="اليمن - صنعاء"
+                />
+              </div>
+              <div class="form-group">
+                <label for="store_phone">رقم الهاتف</label>
+                <input type="text" id="store_phone" placeholder="777XXXXXX" />
+              </div>
+              <div class="form-group">
+                <label for="tax_number">الرقم الضريبي (اختياري)</label>
+                <input type="text" id="tax_number" />
+              </div>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-header">
+              <h3>إعدادات الفواتير</h3>
+            </div>
+            <div class="settings-form">
+              <div class="form-group">
+                <label for="invoice_size">حجم ورق الطباعة</label>
+                <select id="invoice_size">
+                  <option value="thermal">حراري (80mm)</option>
+                  <option value="a4">ورق عادي (A4)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="footer_message">رسالة تذييل الفاتورة</label>
+                <textarea id="footer_message" rows="3"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="currency_symbol">رمز العملة</label>
+                <input type="text" id="currency_symbol" value="ر.ي" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="common.js"></script>
+    <script src="settings.js"></script>
+  </body>
+</html>

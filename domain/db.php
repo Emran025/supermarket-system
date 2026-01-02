@@ -320,7 +320,14 @@ function init_database() {
         error_log("Failed to seed products: " . $e->getMessage());
         // Don't throw, just log - seeding is not critical
     }
+    // Seed default settings
+    try {
+        seed_settings();
+    } catch (Exception $e) {
+        error_log("Failed to seed settings: " . $e->getMessage());
+    }
 }
+
 
 /**
  * Seed default user
@@ -445,6 +452,30 @@ function seed_purchases() {
     
     mysqli_stmt_close($stmt);
 }
+
+/**
+ * Seed default settings
+ */
+function seed_settings() {
+    $conn = get_db_connection();
+    
+    $default_settings = [
+        'store_name' => 'سوبر ماركت الوفاء',
+        'store_address' => 'اليمن - صنعاء - شارع الستين',
+        'store_phone' => '777123456',
+        'invoice_size' => 'thermal', // 'thermal' or 'a4'
+        'currency_symbol' => 'ر.ي',
+        'tax_number' => '123456789',
+        'footer_message' => 'شكراً لزيارتكم .. نأمل رؤيتكم قريباً'
+    ];
+
+    foreach ($default_settings as $key => $value) {
+        $key_esc = mysqli_real_escape_string($conn, $key);
+        $val_esc = mysqli_real_escape_string($conn, $value);
+        mysqli_query($conn, "INSERT IGNORE INTO settings (setting_key, setting_value) VALUES ('$key_esc', '$val_esc')");
+    }
+}
+
 
 // Initialize database on include
 try {

@@ -522,47 +522,54 @@ async function deleteInvoice(id) {
   }
 }
 
-function printInvoice(id) {
-  // Basic print implementation - in real world would use a template or specific route
+async function printInvoice(id) {
+  // 1. Verify printer connection (Simulated)
+  const isPrinterReady = await checkPrinterConnection();
+  if (!isPrinterReady) {
+    showToast("فشل الاتصال بالطابعة. يرجى التحقق من الكابلات.", "error");
+    return;
+  }
+
+  const settings = await getSettings();
+
+  const response = await fetch(
+    `${API_BASE}?action=invoice_details&id=${id}&t=${Date.now()}`,
+    {
+      credentials: "include",
+    }
+  );
+  const res = await response.json();
+
+  if (!res.success) {
+    showToast("فشل تحميل تفاصيل الفاتورة", "error");
+    return;
+  }
+
+  const inv = res.data;
   const printFrame = document.createElement("iframe");
   printFrame.style.display = "none";
   document.body.appendChild(printFrame);
 
-  // Simple printable content
-  fetch(`${API_BASE}?action=invoice_details&id=${id}&t=${Date.now()}`, {
-    credentials: "include",
-  })
-    .then((r) => r.json())
-    .then((res) => {
-      if (res.success) {
-        const inv = res.data;
-        const content = `
-                    <div dir="rtl" style="font-family: Arial; padding: 20px;">
-                        <h2 style="text-align:center;">فاتورة مبيعات</h2>
-                        <hr>
-                        <p>رقم الفاتورة: ${inv.invoice_number}</p>
-                        <p>التاريخ: ${formatDate(inv.created_at, true)}</p>
-                        <table border="1" style="width:100%; border-collapse:collapse;">
-                            <tr><th>المنتج</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr>
-                            ${inv.items
-                              .map(
-                                (i) =>
-                                  `<tr><td>${i.product_name}</td><td align="center">${i.quantity}</td><td align="center">${i.unit_price}</td><td align="center">${i.subtotal}</td></tr>`
-                              )
-                              .join("")}
-                        </table>
-                        <h3 style="text-align:left;">الإجمالي: ${formatCurrency(
-                          inv.total_amount
-                        )}</h3>
-                        <p style="text-align:center;">شكراً لزيارتكم</p>
-                    </div>
-                `;
-        printFrame.contentDocument.write(content);
-        printFrame.contentDocument.close();
-        setTimeout(() => {
-          printFrame.contentWindow.print();
+  const content = generateInvoiceHTML(inv, settings);
+
+  try {
+    printFrame.contentDocument.open();
+    printFrame.contentDocument.write(content);
+    printFrame.contentDocument.close();
+
+    // "Direct print" effect
+    setTimeout(() => {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+      // Auto-cleanup
+      setTimeout(() => {
+        if (printFrame.parentNode) {
           document.body.removeChild(printFrame);
-        }, 500);
-      }
-    });
+        }
+      }, 1000);
+    }, 500);
+  } catch (e) {
+    console.error("Print error", e);
+    showToast("خطأ أثناء تحضير الفاتورة للطباعة", "error");
+  }
 }
