@@ -252,7 +252,7 @@ function renderInvoiceItems() {
   tbody.innerHTML = invoiceItems
     .map(
       (item, index) => `
-        <tr class="animate-fade">
+        <tr class="animate-slide-up">
             <td>${item.display_name}</td>
             <td>${item.quantity} ${item.unit_name}</td>
             <td>${formatCurrency(item.unit_price)}</td>

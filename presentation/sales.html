@@ -59,18 +59,20 @@
           <div class="sales-top-grids">
             <!-- Left: Input Form -->
             <div class="sales-card compact animate-slide">
-              <h3>إضافة منتج للفاتورة</h3>
-              <form id="invoice-form">
-                <div class="form-group">
-                  <label for="invoice-number">رقم الفاتورة</label>
+              <div class="card-header-flex">
+                <h3>إضافة منتج للفاتورة</h3>
+                <div class="invoice-badge">
+                  <span class="stat-label">رقم الفاتورة:</span>
                   <input
                     type="text"
                     id="invoice-number"
-                    class="glass"
                     readonly
+                    class="minimal-input"
                   />
                 </div>
+              </div>
 
+              <form id="invoice-form">
                 <div class="form-group">
                   <label for="product-select">اختر المنتج *</label>
                   <select
@@ -78,16 +80,11 @@
                     onchange="onProductSelect()"
                     required
                   >
-                    <option onclick="onProductSelect()" value="">
-                      -- اختر منتجاً --
-                    </option>
+                    <option value="">-- اختر منتجاً --</option>
                   </select>
                 </div>
 
-                <div
-                  class="form-row tight"
-                  style="grid-template-columns: 1fr 1fr 1fr"
-                >
+                <div class="form-row">
                   <div class="form-group">
                     <label for="item-unit-type">نوع الوحدة</label>
                     <select
@@ -99,6 +96,19 @@
                       <option value="main">كرتون</option>
                     </select>
                   </div>
+                  <div class="form-group">
+                    <label for="item-stock">المخزون المتوفر</label>
+                    <input
+                      type="text"
+                      id="item-stock"
+                      readonly
+                      class="glass highlight-input"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
+                <div class="form-row">
                   <div class="form-group">
                     <label for="item-quantity">الكمية *</label>
                     <input
@@ -122,35 +132,23 @@
                     />
                   </div>
                 </div>
-                <div class="form-row tight" style="grid-template-columns: 1fr">
-                  <div class="form-group">
-                    <label for="item-stock">المخزون المتوفر (حبة)</label>
-                    <input
-                      type="text"
-                      id="item-stock"
-                      readonly
-                      class="glass"
-                      style="background: #f8fafc"
-                    />
+
+                <div class="summary-stat-box">
+                  <div class="stat-item">
+                    <span class="stat-label">المجموع الفرعي</span>
+                    <span id="item-subtotal" class="stat-value highlight"
+                      >0 ر.ي</span
+                    >
                   </div>
-                </div>
-
-                <div class="summary-stat" style="margin-bottom: 1.5rem">
-                  <span class="stat-label">المجموع الفرعي لهذا المنتج</span>
-                  <span id="item-subtotal" class="stat-value highlight"
-                    >0 ر.ي</span
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-add"
+                    onclick="addItemToInvoice()"
+                    data-icon="plus"
                   >
+                    إضافة للفاتورة
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-sm"
-                  style="width: auto"
-                  onclick="addItemToInvoice()"
-                  data-icon="plus"
-                >
-                  إضافة للفاتورة
-                </button>
               </form>
             </div>
 
