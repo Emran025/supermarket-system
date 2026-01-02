@@ -109,10 +109,18 @@ body {
   right: 0;
   top: 0;
   bottom: 0;
-  z-index: 50;
-  transition: transform 0.3s ease;
+  z-index: 100;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-sm);
+  position: fixed;
+  right: 0;
+  overflow: visible; /* To allow toggle button to peek out */
 }
+
+.sidebar.collapsed {
+  width: 80px;
+}
+
 
 .sidebar-header {
   height: 80px;
@@ -135,10 +143,23 @@ body {
   font-weight: 800;
   color: var(--sidebar-text);
   background: none;
-  /* Removed gradient text for better readability on dark bg */
   -webkit-text-fill-color: initial;
   margin: 0;
+  white-space: nowrap;
+  transition: opacity 0.3s, visibility 0.3s;
 }
+
+.sidebar.collapsed .sidebar-header h2 {
+  opacity: 0;
+  visibility: hidden;
+  width: 0;
+}
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 0;
+}
+
 
 .sidebar-nav {
   list-style: none;
@@ -162,6 +183,17 @@ body {
   font-weight: 600;
   font-size: 0.95rem;
   opacity: 0.8;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .sidebar-nav a {
+  justify-content: center;
+  padding: 0.75rem;
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-nav a span {
+  display: none;
 }
 
 .sidebar-nav a:hover {
@@ -176,6 +208,51 @@ body {
   opacity: 1;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
+
+
+.logout-btn {
+  margin-top: auto;
+  color: #ff9999 !important; /* Soft red for logout */
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1.5rem !important;
+}
+
+.logout-btn:hover {
+  background: rgba(220, 38, 38, 0.1) !important;
+  color: #ff6666 !important;
+}
+
+/* Sidebar Toggle Button */
+.sidebar-toggle-btn {
+  position: absolute;
+  top: 40px;
+  right: -12px; /* Positioned on the left edge in RTL, but logically "start" of content */
+  width: 24px;
+  height: 24px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  z-index: 101;
+  transition: transform 0.3s ease;
+}
+
+/* Fix for RTL: right becomes left visually or we just use transform */
+[dir="rtl"] .sidebar-toggle-btn {
+    right: auto;
+    left: -12px;
+}
+
+.sidebar.collapsed .sidebar-toggle-btn {
+  transform: rotate(180deg);
+}
+
+
 
 .alert svg {
   width: 24px;
@@ -199,7 +276,15 @@ body {
   width: calc(100% - 260px);
   padding: 2rem 3rem;
   background: var(--bg-color);
+  transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+.content.expanded {
+    margin-right: 80px;
+    width: calc(100% - 80px);
+}
+
 
 /* Page Header */
 .page-header {

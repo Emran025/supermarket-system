@@ -24,6 +24,8 @@ const icons = {
   users:
     '<svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
   user: '<svg class="icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
+  chevronRight:
+    '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>',
 };
 
 function getIcon(name) {
@@ -66,9 +68,19 @@ async function checkAuth() {
     const user = result.user;
     setupSidebar(user);
 
-    // Update user name display
+    // Update user name and role badge
     const nameDisplay = document.getElementById("userNameDisplay");
     if (nameDisplay) nameDisplay.textContent = user.username;
+
+    const roleBadge = document.getElementById("userRoleBadge");
+    if (roleBadge) {
+      const is_admin = user.role === "admin";
+      roleBadge.textContent = is_admin ? "مدير النظام" : "مبيعات";
+      roleBadge.className = `badge ${
+        is_admin ? "badge-primary" : "badge-secondary"
+      }`;
+      roleBadge.style.display = "inline-block";
+    }
 
     return user;
   } else {
@@ -103,17 +115,61 @@ function setupSidebar(user) {
   const currentPath =
     window.location.pathname.split("/").pop() || "dashboard.html";
 
-  nav.innerHTML = links
-    .map(
-      (link) => `
+  nav.innerHTML =
+    links
+      .map(
+        (link) => `
         <a href="${link.href}" class="${
-        link.href === currentPath ? "active" : ""
-      }">
+          link.href === currentPath ? "active" : ""
+        }">
             ${getIcon(link.icon)} <span>${link.text}</span>
         </a>
     `
-    )
-    .join("");
+      )
+      .join("") +
+    `
+    <a href="#" class="logout-btn">
+        ${getIcon("logout")} <span>تسجيل الخروج</span>
+    </a>
+    `;
+
+  // Re-attach logout listener if it was cleared
+  nav.querySelector(".logout-btn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    logout();
+  });
+
+  setupCollapseToggle();
+}
+
+function setupCollapseToggle() {
+  const sidebar = document.querySelector(".sidebar");
+  const content = document.querySelector(".content");
+  if (!sidebar) return;
+
+  // Add toggle button if it doesn't exist
+  if (!sidebar.querySelector(".sidebar-toggle-btn")) {
+    const toggleBtn = document.createElement("button");
+    toggleBtn.className = "sidebar-toggle-btn";
+    toggleBtn.innerHTML = getIcon("chevronRight");
+    sidebar.appendChild(toggleBtn);
+
+    toggleBtn.addEventListener("click", () => {
+      const collapsed = sidebar.classList.toggle("collapsed");
+      content?.classList.toggle("expanded");
+      localStorage.setItem("sidebarCollapsed", collapsed);
+    });
+  }
+
+  // Initial state check
+  const isCollapsed = localStorage.getItem("sidebarCollapsed") === "true";
+  if (isCollapsed) {
+    sidebar.classList.add("collapsed");
+    content?.classList.add("expanded");
+  } else {
+    sidebar.classList.remove("collapsed");
+    content?.classList.remove("expanded");
+  }
 }
 
 // Logout

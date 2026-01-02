@@ -11,34 +11,52 @@
     />
   </head>
   <body>
-    <div class="app-container">
-      <!-- Sidebar -->
-      <aside class="sidebar" id="sidebar">
+    <div class="main-container">
+      <aside class="sidebar">
         <div class="sidebar-header">
+          <img
+            src="assets/images/logo.svg"
+            alt="Market Logo"
+            class="logo-img"
+          />
           <h2>السوبر ماركت</h2>
         </div>
-        <nav class="sidebar-nav">
+        <div class="sidebar-nav">
           <!-- Links will be injected by common.js -->
-        </nav>
-        <div class="sidebar-footer">
-          <button id="logoutBtn" class="btn btn-logout">
-            <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
-          </button>
         </div>
       </aside>
 
       <!-- Main Content -->
-      <main class="main-content">
-        <header class="top-bar">
-          <button id="sidebarToggle" class="btn-icon">
-            <i class="fas fa-bars"></i>
-          </button>
+      <main class="content animate-fade">
+        <header class="page-header">
           <h1>لوحة التحكم</h1>
-          <div class="user-info">
-            <span id="userNameDisplay">المستخدم</span>
+          <div class="header-actions">
+            <span id="current-date" class="stat-label"></span>
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                border-right: 1px solid var(--border-color);
+                padding-right: 1rem;
+                margin-right: 1rem;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span
+                id="userRoleBadge"
+                class="badge"
+                style="display: none"
+              ></span>
+            </div>
           </div>
         </header>
 
+        <div id="alert-container"></div>
         <div class="content-body">
           <div class="dashboard-stats">
             <div class="stat-card">
