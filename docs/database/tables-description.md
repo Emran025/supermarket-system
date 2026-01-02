@@ -1,14 +1,18 @@
 # Tables Description
 
 ## 1. `users`
+
 **Purpose**: Stores credentials and identity of system users (admins/staff).
+
 - **id**: Primary internal identifier.
 - **username**: The name used to log in (must be unique).
 - **password**: A cryptographic hash of the user's password.
 - **created_at**: Auditing timestamp for when the account was created.
 
 ## 2. `products`
+
 **Purpose**: The central catalog of all items available for sale.
+
 - **id**: Unique product identifier.
 - **name**: Display name of the item.
 - **description**: Detailed notes or specifications.
@@ -20,12 +24,16 @@
 - **items_per_unit**: Multiplication factor for sub-units.
 
 ## 3. `categories`
+
 **Purpose**: Organizes products into logical groups for easier management.
+
 - **id**: Primary identifier.
 - **name**: Human-readable category name (e.g., 'Vegetables').
 
 ## 4. `purchases`
+
 **Purpose**: Records all inbound stock arrivals from suppliers.
+
 - **id**: Unique transaction record.
 - **product_id**: Reference to which product was bought.
 - **quantity**: Amount received.
@@ -34,13 +42,17 @@
 - **purchase_date**: When the goods were received.
 
 ## 5. `invoices`
+
 **Purpose**: Header record for customer sales.
+
 - **id**: Primary identifier.
 - **invoice_number**: A unique alphanumeric code (e.g., INV-1001) for indexing.
 - **total_amount**: The sum of all line items included in this sale.
 
 ## 6. `invoice_items`
+
 **Purpose**: Detailed line items for each sale.
+
 - **id**: Line item identifier.
 - **invoice_id**: Links this item to a specific `invoice`.
 - **product_id**: Reference to the product sold.
@@ -49,7 +61,9 @@
 - **subtotal**: `quantity * unit_price`.
 
 ## 7. `sessions`
+
 **Purpose**: Tracks active user logins to prevent unauthorized access.
+
 - **id**: Session identifier.
 - **user_id**: References the logged-in `user`.
 - **session_token**: A secure random string used for API authentication.

@@ -1,135 +1,141 @@
 # Supermarket Management System
 
-A complete web-based grocery store management system built with PHP, MySQL, and vanilla JavaScript.
+A complete, modern web-based grocery store management system built with PHP, MySQL, and vanilla JavaScript. Designed for efficiency, ease of use, and compliance with local invoicing standards (e.g., QR codes).
 
 ## Features
 
-- **Product Management**: Full CRUD operations for products with minimum profit margin tracking
-- **Purchase Management**: Track purchases with automatic stock updates and 24-hour edit constraint
-- **Sales/POS System**: Point of sale interface with invoice generation and automatic printing
-- **Authentication**: Secure login with session management and login throttling
-- **Database Auto-Initialization**: Automatically creates tables and seeds 100 products on first run
+### Core Modules
+
+- **Dashboard**: Real-time analytics showing daily sales, transaction counts, and top-selling products.
+- **Point of Sale (POS)**: fast checkout interface with barcode scanning support, minimum profit margin warnings, and thermal printer support.
+- **Product Management**: Complete inventory control with search, filtering, and stock tracking.
+- **Purchase Management**: Track purchases with automatic stock updates and 24-hour edit constraint.
+- **User Management**: Role-based access control (Admin vs. Salesperson) to secure sensitive operations.
+- **Settings**: Dynamic configuration for store details, tax settings, currency, and invoice customization.
+
+### Key Capabilities
+
+- **Smart Search**: Global search functionality across products and purchases.
+- **E-Invoicing**: Generates QR codes (ZATCA/Yemen compliant) for invoice validation.
+- **Thermal Printing**: Specialized invoice layout optimized for 80mm thermal printers.
+- **Authentication**: Secure login with session management, throttling, and role-based redirect.
+- **Bilingual Interface**: Arab-centric design with support for localization.
+- **Responsive Design**: Works on desktops, tablets, and mobile devices.
 
 ## Tech Stack
 
-- **Frontend**: Pure HTML + CSS (Cairo font) + Vanilla JavaScript
-- **Backend**: Native PHP (procedural style) + MySQL (mysqli)
-- **Architecture**: Separation of concerns with `presentation/` and `domain/` directories
-
-## Installation
-
-1. **Prerequisites**:
-   - XAMPP (or any PHP/MySQL server)
-   - PHP 7.4 or higher
-   - MySQL 5.7 or higher
-
-2. **Setup**:
-   - Place the project in your web server directory (e.g., `C:\xampp\htdocs\supermarket-system_1`)
-   - Ensure MySQL is running
-   - Update database credentials in `domain/config.php` if needed:
-     ```php
-     define('DB_HOST', 'localhost');
-     define('DB_USER', 'root');
-     define('DB_PASS', '');
-     define('DB_NAME', 'supermarket_system');
-     ```
-
-3. **Database Initialization**:
-   - The database and tables will be created automatically on first access
-   - 100 products will be seeded automatically
-   - Default login credentials:
-     - **Username**: `admin`
-     - **Password**: `admin123`
-
-4. **Access the Application**:
-   - Open your browser and navigate to: `http://localhost/supermarket-system_1/presentation/login.html`
-   - Or simply: `http://localhost/supermarket-system_1/` (redirects to login)
+- **Frontend**:
+  - HTML5 & CSS3 (Custom properties, Cairo Font, Flexbox/Grid)
+  - Vanilla JavaScript (ES6+)
+  - Custom Lightweight State Management
+  - Native QR Code Generation (No external heavy dependencies)
+- **Backend**:
+  - PHP 7.4+ (Object-Oriented Controllers)
+  - MySQL 5.7+ (Protected via Prepared Statements)
+  - RESTful API structured via `domain/api/`
+- **Architecture**:
+  - MVC-inspired separation: `domain` (Logic/Data) vs `presentation` (UI).
 
 ## Project Structure
 
-```
-supermarket-system_1/
-├── domain/              # Backend PHP code
-│   ├── config.php       # Configuration
-│   ├── db.php           # Database connection & initialization
-│   ├── auth.php         # Authentication & session management
-│   └── api.php          # API endpoints
-├── presentation/        # Frontend code
-│   ├── styles.css       # Shared styles
-│   ├── common.js        # Shared JavaScript utilities
-│   ├── login.html       # Login page
-│   ├── login.js         # Login logic
-│   ├── products.html    # Product management page
-│   ├── products.js      # Product management logic
-│   ├── purchases.html   # Purchase management page
-│   ├── purchases.js     # Purchase management logic
-│   ├── sales.html       # Sales/POS page
-│   └── sales.js         # Sales/POS logic
+```batch
+supermarket    -system_1/ Logic
+│   ├── api/                 #AI Controllers
+│   │   ├── AuthController.php
+│   │   ├── ProdutsContrllr.php
+│   │   ├── domaSalesCntroller.php
+│   │   ├── Router           # Request rauticn
+│   │   └── ...
+│   ├── api.php              # API EnHry PoPctode
+│   ├── config.php       # ConfiguraCfgur
+│   ├── db.php                 # Databasb WrcpperctiMigrat iin
+│   ├── auth.php         # Session & AuthhHelieron & session management
+│   └── api.php              # API endp UI
+│   ├── assets/              #oStatii Asssts
+├── presentation/            # Global Tremts &nS code
+│   ├── styles.cs    s       # SharedUs (API, UI, Icon)
+│   ├── qrcodenjs            # QR Chde GeneratroedLibrJryaScript utilities
+│   ├── dashboard.html/ht    # Anapytes Dashboard
+│   ├── sales     /js        # LOSoIcerfc
+│   ├── products.html/html   # Inventory Management
+│   ├── products.js   /js    # StodkmIa gkc
+│   ├── users.html/html      # User Administrateon
+│   ├── pcttinghases./jsjs   # PyhtemmConfiaurationement logic
+│   ├── login.html/html      # Authenteation
+│   └── sales.js             # App Sales/gRc
 └── index.php            # Entry point (redirects to login)
 ```
 
-## Usage
+### Installation
 
 ### Login
-- Use the default credentials: `admin` / `admin123`
-- After 3 failed attempts, login is throttled with increasing wait times
+
+1.**Prrqisi**
+
+- W bhSurvert(Ap che/N: `x)an123`PHP7.4+
+- ySQL Dtbas
 
 ### Product Management
-- View all products in a table
-- Add new products with minimum profit margin
-- Edit existing products
-- Delete products
-- View product details in a dialog
 
-### Purchase Management
-- View all purchases sorted by newest first
-- Add new purchases (automatically updates stock)
-- Edit purchases (only within 24 hours)
-- Delete purchases (automatically adjusts stock)
+2.**Stup**:
+-Plceh  prjeucsiayurweb sever ddrec oryn(e.u.,c`C:\xamtp\htwot \supdrmarkt -pystem`).roducts
+
+- Confegurltrauabaseccretsna`omin/cnfi.php`:
+
+   ```php
+    defn('DB_HOST','olhs');
+  dene('DB_USER', 'oo');
+     iefine('DB_PASS',w'');
+     defi a('DB_NAME',l'sppeumhrkst_eysree');
+     ```
+
+1. **Ini b nizfiin**:
+   - Sdmely rcchasstheuapplocamtoicinly up browder.tes stock)
+   - Thdusy(temo**ly within 24**hcreoeneessary tabllstcnd haedssesfaul  d(ta on the fartt run.omatically adjusts stock)
+
 - View purchase details
+4.**Accs**:
+   URL:`htt://lalhos/upeke-ysm/`
+ eo-c**Dmfiula Aomtn Caedentials**:
+  - Udirnate:e`sdmit`
+ vwht- Passwird:r`cdm123`
 
-### Sales/POS
-- Select products from the available products table
-- Add items to invoice with quantity and unit price
-- System warns if price is below minimum profit margin
-- Generate invoice with invoice number
-- Automatic print dialog after invoice creation
-- View all invoices
-- Delete invoices (only within 48 hours)
-- View invoice details with all items
+## Usage Suidy
+
+### POS & Smlws
+
+-aNasigat pcbw"المبيعات" (Salis).um profit margin
+
+- Gddiocemsebyibnccmdro srch.
+- Cluck "Check Out" to generattmanc print .ialog after invoice creation
+- A thirmae-prin ar-frvid receiptaimplifeld taxte invoi QRccoesy wn 4bhgend.
 
 ## Security Features
 
-- SQL Injection protection using prepared statements
-- Password hashing with PHP's `password_hash()`
-- Session-based authentication
-- One active session per user
-- Login throttling after failed attempts
+### vy
+
+-cUoeo"المنتجات"i( rpructst to hdd/shitii ims.`password_hash()`
+
+- Ssns"MuhimumePiofitcMaoe a"cte ges warnssisoduring ssr ifn tico lsg t tlew.
 - CSRF protection through session tokens
 
-## Business Rules
+## Admito
 
-1. **Purchase Editing**: Purchases can only be edited within 24 hours of creation
-2. **Invoice Editing**: Invoices cannot be edited, but can be deleted within 48 hours
-3. **Stock Management**: Stock is automatically updated when purchases or sales are made
-4. **Profit Margin**: System warns when selling price is below minimum profit margin
+- AAm,e "إدارةالمستخدمين"(Uses) ceadE:s lests tff.
+-iUs  "الإعدادات"2(Sou reg) nv oh EinIvhee noreenbm ,e eond,wit thxrnusbtMnppt iisgaomallvodat .
+
+## wSeceraly &eReli biley
 
 ## Notes
 
-- All code follows procedural PHP style (no classes)
-- Frontend uses pure JavaScript (no frameworks)
-- CSS uses Cairo font family for consistent typography
-- Database tables are created automatically on first run
-- 100 products are seeded automatically for testing
+**SQLInjetinPvtin**:Al qulios fol PDO/MySQLiow ppdaed sPete (ntl.sses)
 
-## Default Login
-
-- **Username**: `admin`
-- **Password**: `admin123`
-
+- **Xro Psrtec Sow**:rOukuCftnfo ing typoronpeels ncryir.## Default Login
+CSRFSesso taken validation.- **Password**: `admin123`
+- Lgin ThotligDelys executioafried atemt t pevetbute-fre (implemened  `auth.php`).
 **Important**: Change the default password in production!
 
 ## Support
 
+intrnaldountation i he `doc/` foldert hesstemadmia
 For issues or questions, please refer to the code comments or contact your instructor.
-

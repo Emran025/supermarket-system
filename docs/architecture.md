@@ -1,37 +1,46 @@
 # System Architecture
 
 ## Overall System Architecture
+
 The Supermarket Management System is built on a **3-Tier Architecture**, ensuring clear separation of concerns, scalability, and maintainability.
 
 ### 1. Presentation Tier (Frontend)
+
 - Built with standard Web technologies (HTML/JS/CSS).
 - Communicates with the backend exclusively via asynchronous JSON requests (Fetch API).
 - Handles UI state management and user feedback.
 
 ### 2. Logic Tier (Backend API)
-- Developed in PHP.
-- Stateless design: It doesn't store user data in local variables; instead, it relies on the database and session tokens for state.
-- Enforces business rules (e.g., "Cannot sell more than available stock").
+
+- Developed in PHP using a **Controller-based architecture**.
+- **Stateless design**: It doesn't store user data in local variables; instead, it relies on the database and session tokens for state.
+- **Router Pattern**: Requests are routed from `api.php` to specific Controllers (e.g., `ProductsController`, `SalesController`) to keep logic organized.
+- Enforces business rules (e.g., "Cannot sell more than available stock", "Only Admins can delete users").
 
 ### 3. Data Tier (Relational Database)
+
 - MariaDB/MySQL storage.
 - Stores persistent data for configurations, transactions, and users.
 - Ensures data integrity through Foreign Key constraints and ACID transactions.
 
 ## Communication Flow
+
 1. **Request**: The user interacts with the UI (e.g., clicks "Save Product").
 2. **Transmission**: The Frontend sends a POST request with JSON payload to `domain/api.php?action=products`.
-3. **Processing**: The Backend validates the user's session, sanitizes the input, and executes the SQL query.
-4. **Response**: The Backend returns a success or error message in JSON format.
-5. **Update**: The UI dynamically updates the table or displays an alert based on the response.
+3. **Routing**: `api.php` instantiates the appropriate Controller based on `action`.
+4. **Processing**: The Controller validates the user's session, sanitizes the input, and executes the SQL query via the DB helper.
+5. **Response**: The Backend returns a success or error message in JSON format.
+6. **Update**: The UI dynamically updates the table or displays an alert based on the response.
 
 ## Design Decisions and Reasoning
-- **Procedural PHP with Functions**: Chosen for high performance and low overhead on shared hosting environments (XAMPP).
+
+- **Object-Oriented PHP**: Migrated from procedural code to Controllers to improve testability and organization as the project grew.
 - **Client-Side Rendering**: By using JS to build tables, we reduce server load and provide a modern, snappy feel.
-- **Cascading Deletes**: Used in the DB schema to ensure that if a product or category is deleted, related historical items don't orphan (referential integrity).
+- **Centralized Settings**: System configuration is stored in the database rather than hardcoded, allowing non-technical admins to update store details.
 - **Dynamic Price Calculation**: Decided to calculate price on new purchases automatically to prevent manual entry errors and ensure consistent profit margins.
 
 ## Scalability Considerations
-- **Database Indexing**: Critical columns like `invoice_number` and `product_id` are indexed to ensure fast lookups even as the database grows to thousands of records.
-- **Stateless API**: Because the API is stateless, it can theoretically be deployed across multiple servers (behind a load balancer) without complex session synchronization (provided they share the same DB).
-- **Separation of Files**: UI and Backend logic are in separate directories (`presentation` vs `domain`), allowing frontend developers to work on styling without touching the server logic.
+
+- **Database Indexing**: Critical columns like `invoice_number` and `product_id` are indexed to ensure fast lookups.
+- **Stateless API**: Because the API is stateless, it can theoretically be deployed across multiple servers.
+- **Modular Frontend**: Each page has its own JS file (`products.js`, `sales.js`), keeping client-side logic decoupled.

@@ -1,8 +1,10 @@
 # Setup and Usage Guide
 
 ## Environment Requirements
+
 To run this project, you need the following installed:
-- **Server**: Apache (or Nginx) with PHP 8.0 or higher.
+
+- **Server**: Apache (or Nginx) with PHP 7.4 or higher.
 - **Database**: MariaDB 10.4 or MySQL 5.7 or higher.
 - **Tooling**: XAMPP, WAMP, or any local PHP/DB stack.
 - **Web Browser**: Modern browser (Chrome, Firefox, Safari, Edge).
@@ -20,35 +22,50 @@ To run this project, you need the following installed:
 4. **Login**:
    - **Default Username**: `admin`
    - **Default Password**: `admin123`
-   - *Recommendation*: Change these credentials immediately after the first login.
+   - *Recommendation*: Change these credentials immediately via the "Users" page after first login.
 
 ## Basic Usage
 
-### Managing Products
-1. Go to the **Products** section.
-2. Click **Add Product** to populate your catalog.
-3. Use the **Edit** button to update existing items.
+### 1. Dashboard
 
-### Recording Purchases (Inbound)
-1. Navigate to **Purchases**.
-2. Select a product, input the quantity received and the total invoice cost.
-3. Select the unit type (Carton/Piece).
-4. Save to automatically update the stock and selling price.
+- View key metrics like "Daily Sales" and "Low Stock Alerts" immediately upon login.
+- Check the "Recent Sales" table for a quick overview of store activity.
 
-### Processing Sales
-1. Open the **Sales** page.
-2. Select items for the customer.
-3. Adjust quantities as needed.
-4. Review the total and click **Complete Sale** to generate an invoice.
+### 2. Managing Products
+
+- Go to the **Products** section.
+- Click **Add Product** to populate your catalog.
+- Use the **Search** bar to find items by name or barcode.
+- Set "Minimum Profit Margin" to protect against underpricing.
+
+### 3. Recording Purchases (Inbound)
+
+- Navigate to **Purchases**.
+- Select a product, input the quantity received and the total cost.
+- Save to automatically update the stock and recalculate average costs.
+
+### 4. Processing Sales (POS)
+
+- Open the **Sales** page.
+- Select items via Search or Barcode Scan.
+- Adjust quantities as needed.
+- Click **Complete Sale** to generate an instant invoice.
+- A **Thermal Receipt** with a QR Code will be ready for printing.
+
+### 5. Administration
+
+- **Users**: Go to `Users` page to create restricted "Sales" accounts for cashiers.
+- **Settings**: Use the `Settings` page to customize the invoice header (Store Name, Phone, Tax Number).
 
 ## Troubleshooting
+
 - **Database Error**: Ensure your MySQL service is running in XAMPP.
-- **Permission Denied**: Check if the `domain/` folder has appropriate write permissions for log files.
-- **Page Not Found**: Ensure the URL matches the folder structure in `htdocs`.
+- **API Errors**: Check the Browser Console (F12) Network tab for 500/400 errors.
+- **Printing Issues**: Ensure your thermal printer is set as the default system printer for "One-Click" experience.
 
 ## Future Improvements
-- **Reports Dashboard**: Graphical visualization of sales trends and profit analysis.
-- **Supplier Management**: A dedicated table to track multiple suppliers.
-- **Barcode Integration**: Support for barcode scanners in the sales interface.
-- **Multi-User Roles**: Standardizing "Manager" vs "Cashier" permissions.
-- **Discount System**: Ability to apply coupons or seasonal discounts on invoices.
+
+- **Cloud Sync**: Optional cloud backup for database.
+- **Supplier Management**: Dedicated module for vendor contact lists.
+- **Discount System**: Promo codes and seasonal discounts.
+- **Advanced Forecasting**: AI-driven stock prediction models.
