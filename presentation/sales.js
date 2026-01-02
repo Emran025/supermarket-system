@@ -650,8 +650,31 @@ async function printInvoice(id) {
     printFrame.contentDocument.write(content);
     printFrame.contentDocument.close();
 
-    // "Direct print" effect
-    setTimeout(() => {
+    // Print after all resources (images) in the iframe have loaded (fixes Chrome timing issue)
+    const waitForImages = () => {
+      return new Promise((resolve) => {
+        const imgs = printFrame.contentDocument.images;
+        if (!imgs || imgs.length === 0) return resolve();
+        let remaining = imgs.length;
+        for (const img of imgs) {
+          if (img.complete) {
+            remaining--;
+            if (remaining === 0) return resolve();
+          } else {
+            img.addEventListener("load", () => {
+              remaining--;
+              if (remaining === 0) resolve();
+            });
+            img.addEventListener("error", () => {
+              remaining--;
+              if (remaining === 0) resolve();
+            });
+          }
+        }
+      });
+    };
+
+    waitForImages().then(() => {
       printFrame.contentWindow.focus();
       printFrame.contentWindow.print();
       // Auto-cleanup
@@ -660,7 +683,7 @@ async function printInvoice(id) {
           document.body.removeChild(printFrame);
         }
       }, 1000);
-    }, 500);
+    });
   } catch (e) {
     console.error("Print error", e);
     showToast("خطأ أثناء تحضير الفاتورة للطباعة", "error");

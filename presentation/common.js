@@ -494,19 +494,73 @@ function generateTLV(tags) {
 }
 
 /**
- * Helper to generate QR Code using local library
+ * Helper to generate a barcode-like image (Data URL).
+ * This replaces the previous QR Code generator for invoice printing.
+ * It encodes the input text into a sequence of bits and renders
+ * narrow/wide vertical bars on a canvas, then returns a data URL.
  */
-function generateQRCode(text) {
-  if (typeof window.createBase64QR === "function") {
-    try {
-      // Use Type 4 or auto, Error Correction M
-      return window.createBase64QR(text, 5);
-    } catch (e) {
-      console.error("QR Generation error", e);
-      return "";
+function generateQRCode(text, padding = 20) {
+  try {
+    const input = String(text || "");
+    const bytes = new TextEncoder().encode(input);
+
+    // Convert bytes to a stream of bits, add a 0 separator between bytes for variation
+    const bits = [];
+    for (const b of bytes) {
+      for (let i = 7; i >= 0; i--) {
+        bits.push((b >> i) & 1);
+      }
+      bits.push(0);
     }
+
+    if (bits.length === 0) return "";
+
+    // Collapse consecutive identical bits into segments
+    const segments = [];
+    let curr = bits[0],
+      cnt = 1;
+    for (let i = 1; i < bits.length; i++) {
+      if (bits[i] === curr) cnt++;
+      else {
+        segments.push({ bit: curr, count: cnt });
+        curr = bits[i];
+        cnt = 1;
+      }
+    }
+    segments.push({ bit: curr, count: cnt });
+
+    // Render segments to canvas as alternating bars/spaces (1 = black bar, 0 = space)
+    const unit = 1.6; // pixels per bit; tune to change look
+    // `padding` is configurable (pixels) to control the quiet zone around the barcode
+    const width = Math.round(
+      segments.reduce((s, seg) => s + seg.count * unit, 0) + padding * 2
+    );
+    const height = 120;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(120, width);
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+
+    // background
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    let x = padding;
+    for (const seg of segments) {
+      const segWidth = Math.max(1, Math.round(seg.count * unit));
+      if (seg.bit === 1) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(x, 0, segWidth, canvas.height);
+      }
+      x += segWidth;
+    }
+
+    return canvas.toDataURL();
+  } catch (e) {
+    console.error("Barcode generation error", e);
+    return "";
   }
-  return "";
 }
 
 /**
@@ -546,8 +600,8 @@ function generateInvoiceHTML(inv, settings, qrDataUrl) {
     5: formattedVat,
   });
 
-  // Generate QR locally if not provided
-  const qrUrl = qrDataUrl || generateQRCode(tlvData);
+  // Generate QR locally if not provided (increase quiet zone for printed invoices)
+  const qrUrl = qrDataUrl || generateQRCode(tlvData, isThermal ? 12 : 28);
 
   const style = `
         <style>
@@ -618,8 +672,17 @@ function generateInvoiceHTML(inv, settings, qrDataUrl) {
             }
             .qr-code {
                 margin: 15px auto;
-                width: 120px;
-                height: 120px;
+                width: 100%;
+                max-width: ${isThermal ? "140px" : "320px"};
+                height: auto;
+                display: block;
+            }
+            .barcode {
+                /* increase spacing so barcode isn't cramped against previous section */
+                margin: 20px auto 16px;
+                width: 100%;
+                max-width: 100%;
+                height: auto;
                 display: block;
             }
             .watermark {
@@ -705,7 +768,9 @@ function generateInvoiceHTML(inv, settings, qrDataUrl) {
                 </div>
 
                 <div class="footer">
-                    <img src="${qrUrl}" class="qr-code" alt="QR Code">
+                    <!-- Render barcode image directly (no external library) -->
+                    <img src="${qrUrl}" class="barcode" alt="Barcode">
+
                     <p><strong>${
                       settings.footer_message || "شكراً لزيارتكم!"
                     }</strong></p>
