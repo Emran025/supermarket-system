@@ -138,6 +138,99 @@
       </main>
     </div>
 
+    <!-- Low Stock Dialog -->
+    <div class="dialog-overlay" id="lowStockDialog">
+      <div class="dialog" style="max-width: 800px">
+        <div class="dialog-header">
+          <h2>تنبيهات نقص المخزون</h2>
+          <button class="close-btn" onclick="closeDialog('lowStockDialog')">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="dialog-body">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 1rem;
+            "
+          >
+            <p style="margin: 0; color: var(--text-secondary)">
+              قائمة المنتجات التي وصلت للحد الأدنى
+            </p>
+            <button
+              class="btn btn-secondary btn-sm"
+              onclick="openDialog('newRequestDialog')"
+            >
+              <i class="fas fa-plus"></i> طلب صنف جديد
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>المنتج</th>
+                  <th>الفئة</th>
+                  <th>الكمية</th>
+                  <th>إجراء</th>
+                </tr>
+              </thead>
+              <tbody id="lowStockTableBody">
+                <tr>
+                  <td colspan="4" class="text-center">جاري التحميل...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New Request Dialog -->
+    <div class="dialog-overlay" id="newRequestDialog">
+      <div class="dialog">
+        <div class="dialog-header">
+          <h2>طلب توفير منتج</h2>
+          <button class="close-btn" onclick="closeDialog('newRequestDialog')">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="dialog-body">
+          <div class="form-group">
+            <label>اسم المنتج / الصنف</label>
+            <input
+              type="text"
+              id="reqProductName"
+              placeholder="أدخل اسم المنتج المطلوب"
+            />
+          </div>
+          <div class="form-group">
+            <label>الكمية المقدرة</label>
+            <input type="number" id="reqQuantity" value="1" min="1" />
+          </div>
+          <div class="form-group">
+            <label>ملاحظات</label>
+            <textarea
+              id="reqNotes"
+              rows="3"
+              placeholder="ملاحظات إضافية للمشتريات..."
+            ></textarea>
+          </div>
+          <div class="form-row">
+            <button
+              class="btn btn-primary"
+              onclick="submitNewRequest()"
+              style="width: 100%"
+            >
+              إرسال الطلب
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="common.js"></script>
     <script src="dashboard.js"></script>
   </body>

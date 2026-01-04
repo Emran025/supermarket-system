@@ -115,6 +115,13 @@
               ></span>
             </div>
             <button
+              class="btn btn-secondary"
+              onclick="openRequestsDialog()"
+              style="margin-left: 0.5rem"
+            >
+              طلبات الشراء
+            </button>
+            <button
               class="btn btn-primary"
               onclick="openAddDialog()"
               data-icon="plus"
@@ -325,6 +332,65 @@
           >
             إغلاق
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Requests Management Dialog -->
+    <div class="dialog-overlay" id="requests-dialog">
+      <div class="dialog" style="max-width: 900px">
+        <div class="dialog-header">
+          <h2>طلبات الشراء المعلقة</h2>
+          <div
+            class="header-actions-sm"
+            style="
+              margin-right: auto;
+              display: flex;
+              gap: 0.5rem;
+              align-items: center;
+            "
+          >
+            <button
+              class="btn btn-sm btn-secondary"
+              onclick="printRequests()"
+              title="طباعة القائمة"
+            >
+              <svg class="icon" viewBox="0 0 24 24">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path
+                  d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"
+                ></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              طباعة
+            </button>
+            <button
+              class="close-btn"
+              onclick="closeDialog('requests-dialog')"
+              style="margin-right: 1rem"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+        <div class="dialog-body">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>المنتج / الصنف</th>
+                  <th>الكمية المطلوبة</th>
+                  <th>ملاحظات</th>
+                  <th>مقدم الطلب</th>
+                  <th>الحالة</th>
+                  <th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="requests-table-body">
+                <!-- Content -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

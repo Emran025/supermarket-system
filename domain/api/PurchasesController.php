@@ -9,6 +9,12 @@ class PurchasesController extends Controller {
             $this->errorResponse('Unauthorized', 401);
         }
 
+        // Handle Purchase Requests
+        if (isset($_GET['action']) && $_GET['action'] === 'requests') {
+            $this->handleRequests();
+            return;
+        }
+
         $method = $_SERVER['REQUEST_METHOD'];
 
         if ($method === 'GET') {
@@ -21,6 +27,63 @@ class PurchasesController extends Controller {
             $this->deletePurchase();
         }
     }
+
+    private function handleRequests() {
+
+        $method = $_SERVER['REQUEST_METHOD'];
+
+        if ($method === 'GET') {
+            $query = "
+                SELECT pr.*, 
+                       COALESCE(p.name, pr.product_name) as display_name,
+                       u.username as requester 
+                FROM purchase_requests pr 
+                LEFT JOIN products p ON pr.product_id = p.id 
+                LEFT JOIN users u ON pr.user_id = u.id 
+                ORDER BY pr.created_at DESC
+            ";
+            $res = mysqli_query($this->conn, $query);
+            $requests = [];
+            while ($row = mysqli_fetch_assoc($res)) {
+                $requests[] = $row;
+            }
+            $this->successResponse(['data' => $requests]);
+        
+        } elseif ($method === 'POST') {
+            $data = $this->getJsonInput();
+            $product_id = !empty($data['product_id']) ? intval($data['product_id']) : NULL;
+            $product_name = $data['product_name'] ?? NULL;
+            $quantity = intval($data['quantity'] ?? 1);
+            $notes = $data['notes'] ?? '';
+            $user_id = $_SESSION['user_id'];
+
+            if (!$product_id && !$product_name) {
+                $this->errorResponse('Product ID or Name required');
+            }
+
+            $stmt = mysqli_prepare($this->conn, "INSERT INTO purchase_requests (product_id, product_name, quantity, user_id, notes) VALUES (?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "isiis", $product_id, $product_name, $quantity, $user_id, $notes);
+            
+            if (mysqli_stmt_execute($stmt)) {
+                $this->successResponse(['message' => 'Request created']);
+            } else {
+                $this->errorResponse('Failed to create request');
+            }
+        
+        } elseif ($method === 'PUT') {
+             // Handle status update (e.g. mark as completed)
+             $data = $this->getJsonInput();
+             $id = intval($data['id']);
+             $status = $data['status']; // 'completed', 'pending'
+             
+             $stmt = mysqli_prepare($this->conn, "UPDATE purchase_requests SET status = ? WHERE id = ?");
+             mysqli_stmt_bind_param($stmt, "si", $status, $id);
+             mysqli_stmt_execute($stmt);
+             $this->successResponse();
+        }
+    }
+
+
 
     private function getPurchases() {
         $params = $this->getPaginationParams();

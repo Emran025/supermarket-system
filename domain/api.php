@@ -83,6 +83,7 @@ try {
     
     // Purchases
     $router->register('purchases', 'PurchasesController');
+    $router->register('requests', 'PurchasesController');
     
     // Sales/Invoices
     $router->register('invoices', 'SalesController');

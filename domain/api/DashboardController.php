@@ -11,6 +11,11 @@ class DashboardController extends Controller {
         
         $this->requireMethod('GET');
         
+        if (isset($_GET['detail']) && $_GET['detail'] === 'low_stock') {
+            $this->getLowStockDetails();
+            return;
+        }
+        
         // Admin sees all, Sales sees limited? Or same dashboard for now?
         // Let's return general stats.
         
@@ -51,5 +56,23 @@ class DashboardController extends Controller {
         $stats['recent_sales'] = $recent_sales;
         
         $this->successResponse(['data' => $stats]);
+    }
+
+    private function getLowStockDetails() {
+        // Fetch low stock items with category info
+        $query = "SELECT id, name, category, stock_quantity, unit_name, sub_unit_name, items_per_unit, description FROM products WHERE stock_quantity < 10 ORDER BY stock_quantity ASC";
+        $res = mysqli_query($this->conn, $query);
+        
+        if (!$res) {
+            $this->errorResponse('Database error: ' . mysqli_error($this->conn));
+            return;
+        }
+
+        $products = [];
+        while ($row = mysqli_fetch_assoc($res)) {
+            $products[] = $row;
+        }
+        
+        $this->successResponse(['data' => $products]);
     }
 }

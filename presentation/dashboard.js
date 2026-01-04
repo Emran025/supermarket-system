@@ -4,6 +4,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!user) return;
 
   loadDashboardStats();
+
+  // Setup Date
+  const dateEl = document.getElementById("current-date");
+  if (dateEl) {
+    const options = {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
+    dateEl.textContent = new Date().toLocaleDateString("ar-SA", options);
+  }
+
+  // Setup Low Stock Click
+  // We need to wait for the DOM to be fully ready or just query selector?
+  // The cards are static in HTML, so we can attach immediately.
+  const lowStockCard = document
+    .querySelector(".stat-card .stat-icon.alert")
+    ?.closest(".stat-card");
+  if (lowStockCard) {
+    lowStockCard.style.cursor = "pointer";
+    lowStockCard.onclick = openLowStockDialog;
+  }
 });
 
 async function loadDashboardStats() {
@@ -11,7 +34,6 @@ async function loadDashboardStats() {
     const response = await fetchAPI("dashboard");
 
     if (!response.success && response.message === "Unauthorized") {
-      // Already handled by checkAuth but double check
       return;
     }
 
@@ -58,3 +80,101 @@ async function loadDashboardStats() {
     console.error("Error loading dashboard stats:", error);
   }
 }
+
+// Low Stock & Request Logic
+async function openLowStockDialog() {
+  openDialog("lowStockDialog");
+  const tbody = document.getElementById("lowStockTableBody");
+  tbody.innerHTML =
+    '<tr><td colspan="4" class="text-center">جاري التحميل...</td></tr>';
+
+  // Fetch details
+  const res = await fetchAPI("dashboard&detail=low_stock");
+  if (res.success) {
+    tbody.innerHTML = "";
+    if (res.data.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="4" class="text-center">لا توجد منتجات منخفضة المخزون</td></tr>';
+      return;
+    }
+    res.data.forEach((p) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+                <td data-label="المنتج">${p.name}</td>
+                <td data-label="الفئة">${p.category || "-"}</td>
+                <td data-label="الكمية" style="color:#d97706; font-weight:bold">${
+                  p.stock_quantity
+                } ${p.unit_name}</td>
+                <td data-label="إجراء">
+                    <button class="btn btn-sm btn-primary" onclick="initiateRestock('${p.name.replace(
+                      /'/g,
+                      "\\'"
+                    )}', ${p.id})">
+                        <i class="fas fa-cart-plus"></i> طلب توفير
+                    </button>
+                </td>
+            `;
+      tbody.appendChild(tr);
+    });
+  } else {
+    tbody.innerHTML =
+      '<tr><td colspan="4" class="text-center text-danger">فشل تحميل البيانات</td></tr>';
+  }
+}
+
+window.initiateRestock = function (name, id) {
+  const nameInput = document.getElementById("reqProductName");
+  nameInput.value = name;
+  nameInput.dataset.id = id; // Store ID
+  document.getElementById("reqQuantity").value = 10; // Default logical amount
+
+  // Close list dialog nicely? Or keep open? Let's keep open for multiple requests?
+  // User might want to stack dialogs. Typically overlay z-index handles it, but let's see.
+  // styles.css dialog-overlay z-index is 9999. If I open another, it sits on top if DOM order is later.
+  // newRequestDialog is after lowStockDialog in DOM, so it should stack on top.
+  openDialog("newRequestDialog");
+};
+
+window.submitNewRequest = async function () {
+  const nameInput = document.getElementById("reqProductName");
+  const name = nameInput.value;
+  const id = nameInput.dataset.id || null;
+  const qty = document.getElementById("reqQuantity").value;
+  const notes = document.getElementById("reqNotes").value;
+
+  if (!name) {
+    showToast("يرجى إدخال اسم المنتج", "error");
+    return;
+  }
+
+  const btn = document.querySelector("#newRequestDialog .btn-primary");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "جاري الإرسال...";
+
+  try {
+    const res = await fetchAPI("requests", "POST", {
+      product_id: id,
+      product_name: name,
+      quantity: qty,
+      notes: notes,
+    });
+
+    if (res.success) {
+      showToast("تم إرسال الطلب بنجاح");
+      closeDialog("newRequestDialog");
+      // Reset form
+      nameInput.value = "";
+      delete nameInput.dataset.id;
+      document.getElementById("reqQuantity").value = 1;
+      document.getElementById("reqNotes").value = "";
+    } else {
+      showToast(res.message || "حدث خطأ", "error");
+    }
+  } catch (e) {
+    showToast("خطأ في الاتصال", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+};

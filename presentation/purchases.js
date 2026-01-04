@@ -335,3 +335,197 @@ async function deletePurchase(id) {
     showAlert("alert-container", "خطأ في الحذف", "error");
   }
 }
+
+// Purchase Requests Management
+async function openRequestsDialog() {
+  openDialog("requests-dialog");
+  await loadRequests();
+}
+
+async function loadRequests() {
+  const tbody = document.getElementById("requests-table-body");
+  tbody.innerHTML =
+    '<tr><td colspan="6" class="text-center">جاري التحميل...</td></tr>';
+
+  try {
+    let res = await fetchAPI("requests");
+    if (res.success) {
+      renderRequestsTable(res.data);
+    } else {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="text-center text-danger">فشل تحميل البيانات</td></tr>';
+    }
+  } catch (e) {
+    tbody.innerHTML =
+      '<tr><td colspan="6" class="text-center text-danger">خطأ في الاتصال</td></tr>';
+  }
+}
+
+function renderRequestsTable(requests) {
+  const tbody = document.getElementById("requests-table-body");
+  if (!requests || requests.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="6" class="text-center">لا توجد طلبات معلقة</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = requests
+    .map(
+      (r) => `
+        <tr class="${r.status === "completed" ? "bg-light text-muted" : ""}">
+            <td>${r.display_name || r.product_name || "-"}</td>
+            <td>${r.quantity}</td>
+            <td>${r.notes || "-"}</td>
+            <td><span class="badge badge-info">${
+              r.requester || "System"
+            }</span></td>
+            <td>
+                <span class="badge badge-${
+                  r.status === "completed" ? "success" : "warning"
+                }">
+                    ${r.status === "completed" ? "مكتمل" : "معلق"}
+                </span>
+            </td>
+            <td>
+                ${
+                  r.status !== "completed"
+                    ? `
+                <button class="btn btn-sm btn-primary" onclick="convertToPurchase(${r.id}, '${r.display_name}', ${r.product_id}, ${r.quantity})">
+                    <i class="fas fa-arrow-right"></i> شراء
+                </button>
+                <button class="btn btn-sm btn-success" onclick="markRequestDone(${r.id})" title="Mark as Done">
+                    <i class="fas fa-check"></i>
+                </button>
+                `
+                    : '<i class="fas fa-check text-success"></i>'
+                }
+            </td>
+        </tr>
+    `
+    )
+    .join("");
+}
+
+function convertToPurchase(reqId, name, prodId, qty) {
+  closeDialog("requests-dialog");
+  openAddDialog();
+
+  // Pre-fill
+  if (prodId) {
+    const select = document.getElementById("purchase-product");
+    select.value = prodId;
+    onPurchaseUnitChange();
+  }
+  document.getElementById("purchase-quantity").value = qty;
+
+  // We could store reqId to mark it done automatically after save?
+  // For now, let's keep it manual or simple.
+}
+
+async function markRequestDone(id) {
+  if (!confirm("هل تريد تغيير الحالة إلى مكتمل؟")) return;
+
+  const res = await fetchAPI("requests", "PUT", {
+    id: id,
+    status: "completed",
+  });
+  if (res.success) {
+    loadRequests(); // Reload list
+  } else {
+    alert("Failed");
+  }
+}
+
+function printRequests() {
+  const tableBody = document.getElementById("requests-table-body");
+  if (
+    !tableBody ||
+    (tableBody.rows.length <= 1 && tableBody.rows[0].cells.length === 6)
+  ) {
+    // Simple check if empty or loading
+    if (tableBody.textContent.includes("لا توجد")) {
+      showToast("لا توجد بيانات للطباعة", "error");
+      return;
+    }
+  }
+
+  // Clone table to new window/iframe or build string
+  // Let's build a simple HTML string for the popup
+  const requests = Array.from(tableBody.querySelectorAll("tr"))
+    .map((tr) => {
+      const cells = tr.querySelectorAll("td");
+      // If it's a message row
+      if (cells.length === 1) return null;
+
+      return {
+        product: cells[0].textContent,
+        qty: cells[1].textContent,
+        notes: cells[2].textContent,
+        requester: cells[3].textContent,
+        status: cells[4].textContent.trim(),
+      };
+    })
+    .filter((r) => r);
+
+  const now = new Date().toLocaleString("ar-SA");
+
+  const printContent = `
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>طباعة طلبات الشراء</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; }
+                h2 { text-align: center; margin-bottom: 20px; }
+                .meta { text-align: center; color: #666; margin-bottom: 30px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+                th { background-color: #f8f9fa; }
+                @media print {
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h2>قائمة طلبات الشراء / النواقص</h2>
+            <div class="meta">تاريخ الطباعة: ${now}</div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>المنتج / الصنف</th>
+                        <th>الكمية المطلوبة</th>
+                        <th>ملاحظات</th>
+                        <th>مقدم الطلب</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${requests
+                      .map(
+                        (r) => `
+                        <tr>
+                            <td>${r.product}</td>
+                            <td>${r.qty}</td>
+                            <td>${r.notes}</td>
+                            <td>${r.requester}</td>
+                            <td>${r.status}</td>
+                        </tr>
+                    `
+                      )
+                      .join("")}
+                </tbody>
+            </table>
+
+            <script>
+                window.onload = function() { window.print(); }
+            </script>
+        </body>
+        </html>
+    `;
+
+  const printWindow = window.open("", "_blank", "width=800,height=600");
+  printWindow.document.write(printContent);
+  printWindow.document.close();
+}

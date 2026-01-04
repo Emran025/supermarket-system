@@ -599,22 +599,55 @@ tbody tr:hover {
 
 /* Button Standard */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.625rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  font-size: 0.95rem;
-  border: none;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: inherit;
-  text-decoration: none;
-  white-space: nowrap;
-  position: relative;
-  overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Password Toggle Styling */
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+.password-container input {
+    padding-left: 3rem; /* Space for icon LTR */
+    text-align: left; /* Force LTR text align for password */
+    direction: ltr;
+}
+
+.password-toggle {
+    position: absolute;
+    left: 10px; /* Position on left because input is LTR */
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-light);
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    transition: color 0.2s;
+}
+
+.password-toggle:hover {
+    color: var(--primary-color);
 }
 
 .btn:active {

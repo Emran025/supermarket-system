@@ -303,6 +303,25 @@ function init_database() {
         mysqli_query($conn, "ALTER TABLE users ADD CONSTRAINT fk_users_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL");
     }
 
+    // Purchase Requests table
+    $requests_sql = "CREATE TABLE IF NOT EXISTS purchase_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        product_id INT NULL,
+        product_name VARCHAR(255) NULL, 
+        quantity INT DEFAULT 1,
+        user_id INT,
+        status VARCHAR(50) DEFAULT 'pending',
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $requests_sql)) {
+        error_log("Failed to create purchase_requests table: " . mysqli_error($conn));
+        throw new Exception("Failed to create purchase_requests table: " . mysqli_error($conn));
+    }
+
 
     
     // Seed default user if not exists
