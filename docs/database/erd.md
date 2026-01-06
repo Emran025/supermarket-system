@@ -94,7 +94,7 @@ erDiagram
     
     PURCHASE_REQUESTS {
         int id PK
-        int product_id FK_NULLABLE
+        int product_id FK
         varchar product_name_NULLABLE
         int quantity
         varchar status
@@ -106,7 +106,7 @@ erDiagram
         varchar invoice_number UK
         decimal total_amount
         varchar payment_type
-        int customer_id FK_NULLABLE
+        int customer_id FK
         decimal amount_paid
         int user_id FK
     }
