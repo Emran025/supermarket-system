@@ -1,141 +1,143 @@
 # Supermarket Management System
 
-A complete, modern web-based grocery store management system built with PHP, MySQL, and vanilla JavaScript. Designed for efficiency, ease of use, and compliance with local invoicing standards (e.g., QR codes).
+A comprehensive retail management system with integrated financial accounting, accounts receivable, and inventory control features.
 
 ## Features
 
-### Core Modules
+### Core Retail Operations
 
-- **Dashboard**: Real-time analytics showing daily sales, transaction counts, and top-selling products.
-- **Point of Sale (POS)**: fast checkout interface with barcode scanning support, minimum profit margin warnings, and thermal printer support.
-- **Product Management**: Complete inventory control with search, filtering, and stock tracking.
-- **Purchase Management**: Track purchases with automatic stock updates and 24-hour edit constraint.
-- **User Management**: Role-based access control (Admin vs. Salesperson) to secure sensitive operations.
-- **Settings**: Dynamic configuration for store details, tax settings, currency, and invoice customization.
+- **Product Management**: Multi-unit product handling (main unit/sub-unit conversion)
+- **Point of Sale (POS)**: Cash and credit sales with real-time inventory updates
+- **Inventory Control**: Stock tracking, expiry date management, and replenishment workflows
+- **Purchase Management**: Stock acquisition recording with automatic price calculation
+- **Purchase Requests**: Staff-initiated procurement workflow with approval system
 
-### Key Capabilities
+### Financial Management
 
-- **Smart Search**: Global search functionality across products and purchases.
-- **E-Invoicing**: Generates QR codes (ZATCA/Yemen compliant) for invoice validation.
-- **Thermal Printing**: Specialized invoice layout optimized for 80mm thermal printers.
-- **Authentication**: Secure login with session management, throttling, and role-based redirect.
-- **Bilingual Interface**: Arab-centric design with support for localization.
-- **Responsive Design**: Works on desktops, tablets, and mobile devices.
+- **Accounts Receivable (AR)**: Customer credit accounts with ledger tracking
+- **Expenses Tracking**: Categorized business expense recording
+- **Asset Management**: Fixed asset tracking with depreciation
+- **Revenue Recording**: Non-POS cash revenue tracking
+- **Financial Reports**: Balance sheet and income statement generation
 
-## Tech Stack
+### System Management
 
-- **Frontend**:
-  - HTML5 & CSS3 (Custom properties, Cairo Font, Flexbox/Grid)
-  - Vanilla JavaScript (ES6+)
-  - Custom Lightweight State Management
-  - Native QR Code Generation (No external heavy dependencies)
-- **Backend**:
-  - PHP 7.4+ (Object-Oriented Controllers)
-  - MySQL 5.7+ (Protected via Prepared Statements)
-  - RESTful API structured via `domain/api/`
-- **Architecture**:
-  - MVC-inspired separation: `domain` (Logic/Data) vs `presentation` (UI).
+- **User Management**: Role-based access control (Admin, Manager, Sales)
+- **Audit Logging**: Complete transaction history via Telescope module
+- **Session Management**: Secure authentication with brute-force protection
+- **Settings Configuration**: Customizable store information and invoice templates
+
+## Technology Stack
+
+### Backend
+
+- **Language**: PHP 7.4+
+- **Database**: MySQL/MariaDB (InnoDB engine)
+- **Architecture**: MVC pattern with Controller-based routing
+- **Authentication**: Session-based with secure token management
+
+### Frontend
+
+- **Core**: Vanilla JavaScript (ES6+)
+- **Styling**: CSS3 with custom variables
+- **Icons**: FontAwesome 6
+- **Fonts**: Google Fonts (Outfit, Cairo)
+- **Communication**: Fetch API for async requests
 
 ## Project Structure
 
 ```batch
-supermarket    -system_1/ Logic
-│   ├── api/                 #AI Controllers
+supermarket-system/
+├── domain/              # Backend logic layer
+│   ├── api/            # Controller classes
+│   │   ├── ArController.php
+│   │   ├── AssetsController.php
 │   │   ├── AuthController.php
-│   │   ├── ProdutsContrllr.php
-│   │   ├── domaSalesCntroller.php
-│   │   ├── Router           # Request rauticn
-│   │   └── ...
-│   ├── api.php              # API EnHry PoPctode
-│   ├── config.php           # ConfiguraCfgur
-│   ├── db.php               # Databasb WrcpperctiMigrat iin
-│   ├── auth.php             # Session & AuthhHelieron & session management
-│   └── api.php              # API endp UI
-│   ├── assets/              #oStatii Asssts
-├── presentation/            # Global Tremts &nS code
-│   ├── styles.cs    s       # SharedUs (API, UI, Icon)
-│   ├── qrcodenjs            # QR Chde GeneratroedLibrJryaScript utilities
-│   ├── dashboard.html/ht    # Anapytes Dashboard
-│   ├── sales     /js        # LOSoIcerfc
-│   ├── products.html/html   # Inventory Management
-│   ├── products.js   /js    # StodkmIa gkc
-│   ├── users.html/html      # User Administrateon
-│   ├── pcttinghases./jsjs   # PyhtemmConfiaurationement logic
-│   ├── login.html/html      # Authenteation
-│   └── sales.js             # App Sales/gRc
-└── index.php                # Entry point (redirects to login)
+│   │   ├── CategoriesController.php
+│   │   ├── Controller.php (Base class)
+│   │   ├── DashboardController.php
+│   │   ├── ExpensesController.php
+│   │   ├── ProductsController.php
+│   │   ├── PurchasesController.php
+│   │   ├── ReportsController.php
+│   │   ├── RevenuesController.php
+│   │   ├── Router.php
+│   │   ├── SalesController.php
+│   │   ├── SettingsController.php
+│   │   └── UsersController.php
+│   ├── api.php         # API entry point
+│   ├── auth.php        # Authentication helpers
+│   ├── config.php      # Database configuration
+│   ├── db.php          # Database initialization & helpers
+│   └── init.php        # System bootstrap
+├── presentation/        # Frontend layer
+│   ├── assets/         # Static resources
+│   ├── *.html          # Page templates
+│   ├── *.js            # Page controllers
+│   ├── common.js       # Shared utilities
+│   ├── styles.css      # Global stylesheet
+│   └── qrcode.js       # QR code generation library
+├── docs/               # Documentation
+└── index.php           # Application entry point
 ```
+
+## Key Capabilities
+
+### Inventory Valuation
+
+- Uses "Last Purchase Price" method
+- Automatic selling price calculation based on cost + minimum profit margin
+- Main unit to sub-unit conversion (e.g., Cartons to Pieces)
+
+### Credit Management
+
+- Customer profiles with contact and tax information
+- Transaction ledger (invoices, payments, returns)
+- Automatic balance calculation and tracking
+
+### Financial Reporting
+
+- **Assets**: Cash estimate, Inventory value, Fixed assets, Accounts receivable
+- **Income Statement**: Sales, Revenues, Purchases, Expenses, Net profit
+
+### Audit Trail
+
+- Every CREATE, UPDATE, DELETE operation logged
+- JSON snapshots of before/after states
+- User, IP, and timestamp tracking
+
+## Quick Start
+
+### Requirements
+
+- PHP 7.4 or higher
+- MySQL 5.7+ or MariaDB 10.4+
+- Apache/Nginx web server
 
 ### Installation
 
-### Login
+1. Clone/extract to server root (e.g., `htdocs/supermarket-system`)
+2. Configure database in `domain/config.php`
+3. Navigate to system URL (e.g., `http://localhost/supermarket-system`)
+4. System auto-creates database and tables on first run
 
-1.**Prrqisi**
+### Default Credentials
 
-- W bhSurvert(Ap che/N: `x)an123`PHP7.4+
-- ySQL Dtbas
+- **Username**: `admin`
+- **Password**: `admin123`
 
-### Product Management
+## Documentation
 
-2.**Stup**:
--Plceh  prjeucsiayurweb sever ddrec oryn(e.u.,c`C:\xamtp\htwot \supdrmarkt -pystem`).roducts
+See `/docs` folder for detailed documentation:
 
-- Confegurltrauabaseccretsna`omin/cnfi.php`:
+- `overview.md` - System overview
+- `architecture.md` - Technical architecture  
+- `backend.md` - Backend implementation
+- `frontend.md` - Frontend implementation
+- `api-overview.md` - API reference
+- `database/` - Database schema and relationships
+- `setup-and-usage.md` - Installation and user guide
 
-   ```php
-    defn('DB_HOST','olhs');
-  dene('DB_USER', 'oo');
-     iefine('DB_PASS',w'');
-     defi a('DB_NAME',l'sppeumhrkst_eysree');
-     ```
+## License
 
-1. **Ini b nizfiin**:
-   - Sdmely rcchasstheuapplocamtoicinly up browder.tes stock)
-   - Thdusy(temo**ly within 24**hcreoeneessary tabllstcnd haedssesfaul  d(ta on the fartt run.omatically adjusts stock)
-
-- View purchase details
-4.**Accs**:
-   URL:`htt://lalhos/upeke-ysm/`
- eo-c**Dmfiula Aomtn Caedentials**:
-  - Udirnate:e`sdmit`
- vwht- Passwird:r`cdm123`
-
-## Usage Suidy
-
-### POS & Smlws
-
--aNasigat pcbw"المبيعات" (Salis).um profit margin
-
-- Gddiocemsebyibnccmdro srch.
-- Cluck "Check Out" to generattmanc print .ialog after invoice creation
-- A thirmae-prin ar-frvid receiptaimplifeld taxte invoi QRccoesy wn 4bhgend.
-
-## Security Features
-
-### vy
-
--cUoeo"المنتجات"i( rpructst to hdd/shitii ims.`password_hash()`
-
-- Ssns"MuhimumePiofitcMaoe a"cte ges warnssisoduring ssr ifn tico lsg t tlew.
-- CSRF protection through session tokens
-
-## Admito
-
-- AAm,e "إدارةالمستخدمين"(Uses) ceadE:s lests tff.
--iUs  "الإعدادات"2(Sou reg) nv oh EinIvhee noreenbm ,e eond,wit thxrnusbtMnppt iisgaomallvodat .
-
-## wSeceraly &eReli biley
-
-## Notes
-
-**SQLInjetinPvtin**:Al qulios fol PDO/MySQLiow ppdaed sPete (ntl.sses)
-
-- **Xro Psrtec Sow**:rOukuCftnfo ing typoronpeels ncryir.## Default Login
-CSRFSesso taken validation.- **Password**: `admin123`
-- Lgin ThotligDelys executioafried atemt t pevetbute-fre (implemened  `auth.php`).
-**Important**: Change the default password in production!
-
-## Support
-
-intrnaldountation i he `doc/` foldert hesstemadmia
-For issues or questions, please refer to the code comments or contact your instructor.
+MIT License

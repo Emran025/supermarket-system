@@ -1,70 +1,461 @@
-# Tables Description
+# Table Descriptions
 
-## 1. `users`
+## Core Business Tables
 
-**Purpose**: Stores credentials and identity of system users (admins/staff).
+### users
 
-- **id**: Primary internal identifier.
-- **username**: The name used to log in (must be unique).
-- **password**: A cryptographic hash of the user's password.
-- **created_at**: Auditing timestamp for when the account was created.
+**Purpose**: User authentication and role-based access control
 
-## 2. `products`
+**Key Columns**:
 
-**Purpose**: The central catalog of all items available for sale.
+- `role`: Defines permissions (admin > manager > sales)
+- `manager_id`: Creates hierarchical reporting structure
+- `is_active`: Allows disabling accounts without deletion
 
-- **id**: Unique product identifier.
-- **name**: Display name of the item.
-- **description**: Detailed notes or specifications.
-- **category**: Functional grouping (linked to the `categories` table).
-- **unit_price**: The current selling price of the item.
-- **minimum_profit_margin**: The fixed amount added to the purchase cost to determine the selling price.
-- **stock_quantity**: Current count of items in the warehouse/store.
-- **unit_name**: The primary bulk unit (e.g., 'Carton').
-- **items_per_unit**: Multiplication factor for sub-units.
+**Business Logic**:
 
-## 3. `categories`
+- Passwords hashed with bcrypt (minimum 8 characters recommended)
+- Username uniqueness enforced at database level
+- Self-referencing for org chart (sales → manager → admin)
 
-**Purpose**: Organizes products into logical groups for easier management.
+**Use Cases**:
 
-- **id**: Primary identifier.
-- **name**: Human-readable category name (e.g., 'Vegetables').
+- Login authentication
+- Permission checks in controllers
+- Audit attribution (created_by fields)
 
-## 4. `purchases`
+---
 
-**Purpose**: Records all inbound stock arrivals from suppliers.
+### products
 
-- **id**: Unique transaction record.
-- **product_id**: Reference to which product was bought.
-- **quantity**: Amount received.
-- **invoice_price**: The cost paid to the supplier for this specific batch.
-- **unit_type**: Whether the quantity represents the 'Main' unit or the 'Sub' unit.
-- **purchase_date**: When the goods were received.
+**Purpose**: Product master catalog with multi-unit inventory tracking
 
-## 5. `invoices`
+**Key Columns**:
 
-**Purpose**: Header record for customer sales.
+- `unit_price`: Current selling price (updated on purchase)
+- `minimum_profit_margin`: Enforced markup amount
+- `stock_quantity`: Always stored in sub-units (e.g., pieces)
+- `items_per_unit`: Conversion factor (e.g., 24 pieces per carton)
 
-- **id**: Primary identifier.
-- **invoice_number**: A unique alphanumeric code (e.g., INV-1001) for indexing.
-- **total_amount**: The sum of all line items included in this sale.
+**Business Logic**:
 
-## 6. `invoice_items`
+- Unit conversion: 1 carton of 24 pieces = 24 stock_quantity
+- Price calculation: `new_price = (purchase_cost / qty) + minimum_profit_margin`
+- Stock updates:
+  - Purchase: stock += quantity
+  - Sale: stock -= quantity
 
-**Purpose**: Detailed line items for each sale.
+**Use Cases**:
 
-- **id**: Line item identifier.
-- **invoice_id**: Links this item to a specific `invoice`.
-- **product_id**: Reference to the product sold.
-- **quantity**: Number of units sold.
-- **unit_price**: The price at which the item was sold at the time of transaction.
-- **subtotal**: `quantity * unit_price`.
+- POS product lookup
+- Inventory valuation (stock_quantity × unit_price)
+- Purchase price calculation
 
-## 7. `sessions`
+---
 
-**Purpose**: Tracks active user logins to prevent unauthorized access.
+### purchases
 
-- **id**: Session identifier.
-- **user_id**: References the logged-in `user`.
-- **session_token**: A secure random string used for API authentication.
-- **expires_at**: Timestamp after which the token is no longer valid.
+**Purpose**: Stock acquisition history with cost tracking and expiry management
+
+**Key Columns**:
+
+- `invoice_price`: Total cost of purchase (not per-unit)
+- `unit_type`: Specifies if quantity is in 'main' (carton) or 'sub' (piece)
+- `production_date` / `expiry_date`: Quality control and FEFO tracking
+
+**Business Logic**:
+
+- Actual quantity = (`unit_type` == 'main') ? `quantity` × `items_per_unit` : `quantity`
+- Price per item = `invoice_price` / actual_quantity
+- Triggers product price update on insert
+
+**Use Cases**:
+
+- Latest cost lookup for pricing
+- Expiry alerts (dashboard query: `expiry_date` < NOW() + 30 days)
+- Purchase history reporting
+
+---
+
+### invoices
+
+**Purpose**: Sales transaction headers
+
+**Key Columns**:
+
+- `invoice_number`: User-facing unique identifier (e.g., "INV-1001")
+- `payment_type`: 'cash' (immediate) or 'credit' (deferred)
+- `customer_id`: Required only when payment_type = 'credit'
+- `amount_paid`: Supports partial payments on credit sales
+
+**Business Logic**:
+
+- Cash: customer_id = NULL, amount_paid = 0
+- Credit: customer_id set, creates AR transactions
+- Total calculated as SUM(invoice_items.subtotal)
+
+**Use Cases**:
+
+- Sales reporting (daily/monthly totals)
+- AR filtering (invoices for specific customer)
+- Print receipt generation
+
+---
+
+### invoice_items
+
+**Purpose**: Line-level detail for sales transactions
+
+**Key Columns**:
+
+- `unit_price`: **Snapshot** price at sale time (not current product.unit_price)
+- `subtotal`: Precomputed quantity × unit_price
+
+**Business Logic**:
+
+- Denormalized price for historical accuracy
+- Cascade delete when invoice deleted
+- Used to restore stock on invoice reversal
+
+**Use Cases**:
+
+- Receipt printing (itemized list)
+- Product sales analysis
+- Stock deduction tracking
+
+---
+
+## Financial Tables
+
+### ar_customers
+
+**Purpose**: Credit customer profiles with balance tracking
+
+**Key Columns**:
+
+- `current_balance`: Outstanding debt (auto-calculated from ledger)
+- `tax_number`: For invoicing compliance
+
+**Business Logic**:
+
+- Balance updated after every ar_transaction change
+- Balance = SUM(debit) - SUM(credit) from ar_transactions
+- Cannot delete customer with non-zero balance (soft constraint)
+
+**Use Cases**:
+
+- Customer lookup for credit sales
+- Aging report (customers with balance > 0)
+- Credit limit checks (application-level)
+
+---
+
+### ar_transactions
+
+**Purpose**: Double-entry ledger for customer debt tracking
+
+**Key Columns**:
+
+- `type`: 'invoice' (debit), 'payment' (credit), 'return' (credit)
+- `reference_type` / `reference_id`: Links to source document
+- `is_deleted`: Soft delete for correction without losing history
+
+**Business Logic**:
+
+- Invoice: Increases customer balance
+- Payment/Return: Decreases customer balance
+- Soft delete: Excluded from balance calculation
+- Restore: Reincluded in balance calculation
+
+**Use Cases**:
+
+- Customer ledger/statement
+- Payment recording
+- Balance reconciliation
+
+---
+
+### expenses
+
+**Purpose**: Operating expense tracking
+
+**Key Columns**:
+
+- `category`: Free-text categorization (Rent, Utilities, Payroll, etc.)
+- `expense_date`: Allows backdating for accurate period reporting
+
+**Business Logic**:
+
+- Debits cash in balance sheet calculation
+- No link to specific invoice/purchase (operating expense)
+
+**Use Cases**:
+
+- Expense report by category
+- Monthly/quarterly expense totals
+- Net profit calculation (revenue - expenses)
+
+---
+
+### assets
+
+**Purpose**: Fixed asset register
+
+**Key Columns**:
+
+- `depreciation_rate`: Annual percentage (e.g., 10.00 = 10% per year)
+- `status`: 'active' (in use) or 'disposed' (sold/discarded)
+
+**Business Logic**:
+
+- Depreciation calculated manually (not automated)
+- Only 'active' assets included in balance sheet
+- Book value = `value` - (accumulated depreciation)
+
+**Use Cases**:
+
+- Asset inventory
+- Depreciation schedule (external calculation)
+- Balance sheet fixed assets line
+
+---
+
+### revenues
+
+**Purpose**: Non-POS cash inflows
+
+**Key Columns**:
+
+- `source`: Description of revenue origin (e.g., "Scrap Sales", "Commission Income")
+
+**Business Logic**:
+
+- Separate from invoices (invoices tracked in `invoices` table)
+- Adds to cash in balance sheet
+
+**Use Cases**:
+
+- Miscellaneous income tracking
+- Total revenue calculation (invoice + revenues)
+
+---
+
+## System Tables
+
+### sessions
+
+**Purpose**: Active authentication tokens
+
+**Key Columns**:
+
+- `session_token`: 64-character random hex string
+- `expires_at`: DATETIME (not TIMESTAMP, to avoid 2038 problem)
+
+**Business Logic**:
+
+- Created on successful login
+- Validated on every API request (`is_logged_in()`)
+- Expired sessions not auto-deleted (manual cleanup required)
+- Multiple sessions per user allowed (multi-device)
+
+**Use Cases**:
+
+- Authentication check
+- Session management (view active sessions)
+- Security audit (IP/user agent tracking)
+
+---
+
+### login_attempts
+
+**Purpose**: Brute-force attack mitigation
+
+**Key Columns**:
+
+- `attempts`: Failed login count
+- `locked_until`: Account lock expiration time
+
+**Business Logic**:
+
+- Incremented on failed login
+- Reset to 0 on successful login
+- ≥5 attempts → `locked_until` = NOW() + 15 minutes
+- Login blocked if NOW() < `locked_until`
+
+**Use Cases**:
+
+- Login throttling
+- Security monitoring (detect brute-force attacks)
+
+---
+
+### telescope
+
+**Purpose**: Immutable audit log
+
+**Key Columns**:
+
+- `operation`: 'CREATE', 'UPDATE', 'DELETE'
+- `old_values` / `new_values`: JSON snapshots before/after change
+
+**Business Logic**:
+
+- Written on every INSERT/UPDATE/DELETE via `log_operation()`
+- Never updated or deleted (append-only log)
+- Includes user context (ID, IP, user agent)
+
+**Use Cases**:
+
+- Compliance auditing
+- Data change history
+- Troubleshooting (who changed what when)
+
+**Example Entry**:
+
+```json
+{
+  "operation": "UPDATE",
+  "table_name": "products",
+  "record_id": 5,
+  "old_values": {"unit_price": 10.50},
+  "new_values": {"unit_price": 11.00},
+  "user_id": 1,
+  "created_at": "2026-01-06 18:00:00"
+}
+```
+
+---
+
+### settings
+
+**Purpose**: Application configuration storage
+
+**Key Structure**: Key-value pairs (setting_key → setting_value)
+
+**Stored Settings**:
+
+- `store_name`: Business name for invoices
+- `store_address`: Physical location
+- `store_phone`: Contact number
+- `tax_number`: Tax registration ID
+- `currency_symbol`: Display symbol (e.g., "ر.ي")
+- `invoice_size`: 'thermal' (80mm) or 'a4'
+- `footer_message`: Receipt footer text
+
+**Business Logic**:
+
+- Loaded once per page (not on every API call)
+- Updated via settings UI (Admin only)
+- Used in invoice rendering
+
+**Use Cases**:
+
+- Invoice header/footer customization
+- Multi-tenancy (each instance has own settings)
+- Currency localization
+
+---
+
+## Supporting Tables
+
+### categories
+
+**Purpose**: Product categorization lookup table
+
+**Note**: Products store category as text, not FK. This table is informational/autocomplete only.
+
+**Business Logic**:
+
+- Unique category names
+- Used to populate category dropdown in UI
+- No CASCADE delete impact on products
+
+---
+
+### purchase_requests
+
+**Purpose**: Procurement workflow
+
+**Key Columns**:
+
+- `product_id`: NULL if requesting new product not in catalog
+- `product_name`: If `product_id` NULL, contains suggested name
+- `status`: 'pending', 'approved', 'rejected'
+
+**Business Logic**:
+
+- Staff (sales role) creates request
+- Manager approves/rejects
+- Approved requests manually converted to purchases
+
+**Use Cases**:
+
+- Stock requisition system
+- Manager approval workflow
+- New product suggestions
+
+---
+
+## Table Size Hierarchy (Largest to Smallest)
+
+1. **telescope** - Grows unbounded, largest over time
+2. **invoice_items** - Grows with sales volume
+3. **invoices** - Grows with sales volume
+4. **purchases** - Grows with procurement activity
+5. **ar_transactions** - Grows with credit sales
+6. **products** - Relatively stable (100-10,000 items typical)
+7. **sessions** - Transient, small
+8. **ar_customers** - Grows slowly
+9. **expenses** - Low volume (monthly entries)
+10. **users** - Very small (5-50 users typical)
+11. **assets** - Very small (10-100 assets typical)
+12. **revenues** - Very small (occasional entries)
+13. **settings** - Tiny (10-20 keys)
+14. **categories** - Tiny (10-50 categories)
+15. **purchase_requests** - Transient
+16. **login_attempts** - Transient
+
+## Data Ownership
+
+**User-Created Records** (tracked via created_by or user_id):
+
+- Products, Categories, Purchases, Invoices
+- AR Customers, AR Transactions
+- Expenses, Assets, Revenues
+- Purchase Requests
+
+**System-Generated**:
+
+- Sessions
+- Login Attempts
+- Telescope
+
+**User-Independent**:
+
+- Settings
+- Invoice Items (derived from products)
+
+## Cascade Deletion Impact
+
+**When User Deleted**:
+
+- Sessions: ❌ Deleted (CASCADE)
+- All created records: ✓ Preserved (SET NULL)
+- Telescope entries: ✓ Preserved (SET NULL)
+
+**When Product Deleted**:
+
+- Purchases: ❌ Deleted (CASCADE) - loses cost history  
+- Invoice Items: ❌ Deleted (CASCADE) - **Risk**: breaks invoices
+- **Recommendation**: Soft-delete products instead of hard delete
+
+**When Invoice Deleted**:
+
+- Invoice Items: ❌ Deleted (CASCADE)
+- AR Transactions: ⚠️ Soft-deleted (is_deleted = 1)
+
+**When AR Customer Deleted**:
+
+- AR Transactions: ❌ Deleted (CASCADE) - loses debt history
+- Invoices: ✓ Preserved (SET NULL customer_id)
+- **Recommendation**: Disallow deletion if transactions exist

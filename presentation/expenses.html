@@ -41,11 +41,55 @@
               style="
                 width: 100%;
                 padding: 0.75rem 2.5rem 0.75rem 1rem;
+                padding-left: 3.5rem; /* Make space for button */
                 border: 1px solid var(--border-color);
                 border-radius: var(--radius-md);
                 background: white;
+                font-family: inherit;
+                font-size: 0.95rem;
+                transition: border-color 0.2s;
               "
+              onfocus="this.style.borderColor = 'var(--primary-color)'"
+              onblur="this.style.borderColor = 'var(--border-color)'"
             />
+            <button
+              id="search-btn"
+              style="
+                position: absolute;
+                left: 0.5rem;
+                top: 50%;
+                transform: translateY(-50%);
+                border: none;
+                background: var(--primary-color);
+                color: white;
+                border-radius: var(--radius-sm);
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: background 0.2s;
+              "
+              onmouseover="this.style.background = 'var(--primary-dark)'"
+              onmouseout="this.style.background = 'var(--primary-color)'"
+              onclick="document.getElementById('params-search').dispatchEvent(new Event('input'));"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
           </div>
           <div class="header-actions">
             <div
@@ -62,6 +106,11 @@
               <span
                 id="userNameDisplay"
                 style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span
+                id="userRoleBadge"
+                class="badge"
+                style="display: none"
               ></span>
             </div>
             <button
