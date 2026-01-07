@@ -1,20 +1,23 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
-require_once __DIR__ . '/../LedgerService.php';
-require_once __DIR__ . '/../ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/LedgerService.php';
+require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
 
-class ExpensesController extends Controller {
+class ExpensesController extends Controller
+{
     private $ledgerService;
     private $coaMapping;
-    
-    public function __construct() {
+
+    public function __construct()
+    {
         parent::__construct();
         $this->ledgerService = new LedgerService();
         $this->coaMapping = new ChartOfAccountsMappingService();
     }
 
-    public function handle() {
+    public function handle()
+    {
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
@@ -32,7 +35,8 @@ class ExpensesController extends Controller {
         }
     }
 
-    private function getExpenses() {
+    private function getExpenses()
+    {
         $params = $this->getPaginationParams();
         $limit = $params['limit'];
         $offset = $params['offset'];
@@ -71,9 +75,10 @@ class ExpensesController extends Controller {
         $this->paginatedResponse($expenses, $total, $params['page'], $params['limit']);
     }
 
-    private function createExpense() {
+    private function createExpense()
+    {
         $data = $this->getJsonInput();
-        
+
         $category = $data['category'] ?? '';
         $amount = floatval($data['amount'] ?? 0);
         $expense_date = $data['expense_date'] ?? date('Y-m-d');
@@ -86,7 +91,7 @@ class ExpensesController extends Controller {
         if (empty($category) || $amount <= 0) {
             $this->errorResponse('Category and positive amount required');
         }
-        
+
         // Validate account code exists in COA
         if ($account_code) {
             $acc_result = mysqli_query($this->conn, "SELECT id, account_type FROM chart_of_accounts WHERE account_code = '" . mysqli_real_escape_string($this->conn, $account_code) . "' AND is_active = 1");
@@ -100,17 +105,17 @@ class ExpensesController extends Controller {
         }
 
         mysqli_begin_transaction($this->conn);
-        
+
         try {
             $stmt = mysqli_prepare($this->conn, "INSERT INTO expenses (category, account_code, amount, expense_date, description, user_id) VALUES (?, ?, ?, ?, ?, ?)");
             mysqli_stmt_bind_param($stmt, "ssdssi", $category, $account_code, $amount, $expense_date, $description, $user_id);
             mysqli_stmt_execute($stmt);
             $id = mysqli_insert_id($this->conn);
             mysqli_stmt_close($stmt);
-            
+
             // Post to General Ledger - Double Entry
             $voucher_number = $this->ledgerService->getNextVoucherNumber('EXP');
-            
+
             $accounts = $this->coaMapping->getStandardAccounts();
             $gl_entries = [
                 [
@@ -126,9 +131,9 @@ class ExpensesController extends Controller {
                     'description' => "دفع مصروف - $category"
                 ]
             ];
-            
+
             $this->ledgerService->postTransaction($gl_entries, 'expenses', $id, $voucher_number, $expense_date);
-            
+
             mysqli_commit($this->conn);
             log_operation('CREATE', 'expenses', $id, null, $data);
             $this->successResponse(['id' => $id, 'voucher_number' => $voucher_number]);
@@ -138,10 +143,11 @@ class ExpensesController extends Controller {
         }
     }
 
-    private function updateExpense() {
+    private function updateExpense()
+    {
         $data = $this->getJsonInput();
         $id = intval($data['id'] ?? 0);
-        
+
         $category = $data['category'] ?? '';
         $amount = floatval($data['amount'] ?? 0);
         $expense_date = $data['expense_date'] ?? date('Y-m-d H:i:s');
@@ -151,7 +157,7 @@ class ExpensesController extends Controller {
         if (empty($category) || $amount <= 0) {
             $this->errorResponse('Category and positive amount required');
         }
-        
+
         // Validate account code if provided
         if ($account_code) {
             $acc_result = mysqli_query($this->conn, "SELECT id, account_type FROM chart_of_accounts WHERE account_code = '" . mysqli_real_escape_string($this->conn, $account_code) . "' AND is_active = 1");
@@ -170,7 +176,7 @@ class ExpensesController extends Controller {
 
         $stmt = mysqli_prepare($this->conn, "UPDATE expenses SET category = ?, account_code = ?, amount = ?, expense_date = ?, description = ? WHERE id = ?");
         mysqli_stmt_bind_param($stmt, "ssdssi", $category, $account_code, $amount, $expense_date, $description, $id);
-        
+
         if (mysqli_stmt_execute($stmt)) {
             log_operation('UPDATE', 'expenses', $id, $old_data, $data);
             $this->successResponse();
@@ -179,16 +185,17 @@ class ExpensesController extends Controller {
         }
     }
 
-    private function deleteExpense() {
+    private function deleteExpense()
+    {
         $id = intval($_GET['id'] ?? 0);
-        
+
         // Get old values for logging
         $old_res = mysqli_query($this->conn, "SELECT * FROM expenses WHERE id = $id");
         $old_data = mysqli_fetch_assoc($old_res);
 
         $stmt = mysqli_prepare($this->conn, "DELETE FROM expenses WHERE id = ?");
         mysqli_stmt_bind_param($stmt, "i", $id);
-        
+
         if (mysqli_stmt_execute($stmt)) {
             log_operation('DELETE', 'expenses', $id, $old_data);
             $this->successResponse();

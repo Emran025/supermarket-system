@@ -16,5 +16,3 @@ define('THROTTLE_BASE_TIME', 60); // 1 minute base wait time
 define('BASE_PATH', dirname(__DIR__));
 define('DOMAIN_PATH', BASE_PATH . '/domain');
 define('PRESENTATION_PATH', BASE_PATH . '/presentation');
-?>
-

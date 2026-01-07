@@ -1,20 +1,23 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
-require_once __DIR__ . '/../LedgerService.php';
-require_once __DIR__ . '/../DepreciationService.php';
+require_once __DIR__ . '/../Services/LedgerService.php';
+require_once __DIR__ . '/../Services/DepreciationService.php';
 
-class AssetsController extends Controller {
+class AssetsController extends Controller
+{
     private $ledgerService;
     private $depreciationService;
-    
-    public function __construct() {
+
+    public function __construct()
+    {
         parent::__construct();
         $this->ledgerService = new LedgerService();
         $this->depreciationService = new DepreciationService();
     }
 
-    public function handle() {
+    public function handle()
+    {
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
@@ -39,7 +42,8 @@ class AssetsController extends Controller {
         }
     }
 
-    private function getAssets() {
+    private function getAssets()
+    {
         $params = $this->getPaginationParams();
         $limit = $params['limit'];
         $offset = $params['offset'];
@@ -78,9 +82,10 @@ class AssetsController extends Controller {
         $this->paginatedResponse($assets, $total, $params['page'], $params['limit']);
     }
 
-    private function createAsset() {
+    private function createAsset()
+    {
         $data = $this->getJsonInput();
-        
+
         $name = $data['name'] ?? '';
         $value = floatval($data['value'] ?? 0);
         $purchase_date = $data['purchase_date'] ?? date('Y-m-d');
@@ -94,17 +99,17 @@ class AssetsController extends Controller {
         }
 
         mysqli_begin_transaction($this->conn);
-        
+
         try {
             $stmt = mysqli_prepare($this->conn, "INSERT INTO assets (name, value, purchase_date, depreciation_rate, description, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
             mysqli_stmt_bind_param($stmt, "sdssssi", $name, $value, $purchase_date, $depreciation_rate, $description, $status, $user_id);
             mysqli_stmt_execute($stmt);
             $id = mysqli_insert_id($this->conn);
             mysqli_stmt_close($stmt);
-            
+
             // Post to General Ledger - Double Entry
             $voucher_number = $this->ledgerService->getNextVoucherNumber('VOU');
-            
+
             $gl_entries = [
                 [
                     'account_code' => '1210', // Fixed Assets
@@ -119,9 +124,9 @@ class AssetsController extends Controller {
                     'description' => "دفع مقابل شراء أصل - $name"
                 ]
             ];
-            
+
             $this->ledgerService->postTransaction($gl_entries, 'assets', $id, $voucher_number, $purchase_date);
-            
+
             mysqli_commit($this->conn);
             log_operation('CREATE', 'assets', $id, null, $data);
             $this->successResponse(['id' => $id, 'voucher_number' => $voucher_number]);
@@ -131,10 +136,11 @@ class AssetsController extends Controller {
         }
     }
 
-    private function updateAsset() {
+    private function updateAsset()
+    {
         $data = $this->getJsonInput();
         $id = intval($data['id'] ?? 0);
-        
+
         $name = $data['name'] ?? '';
         $value = floatval($data['value'] ?? 0);
         $purchase_date = $data['purchase_date'] ?? date('Y-m-d');
@@ -152,7 +158,7 @@ class AssetsController extends Controller {
 
         $stmt = mysqli_prepare($this->conn, "UPDATE assets SET name = ?, value = ?, purchase_date = ?, depreciation_rate = ?, description = ?, status = ? WHERE id = ?");
         mysqli_stmt_bind_param($stmt, "sdssssi", $name, $value, $purchase_date, $depreciation_rate, $description, $status, $id);
-        
+
         if (mysqli_stmt_execute($stmt)) {
             log_operation('UPDATE', 'assets', $id, $old_data, $data);
             $this->successResponse();
@@ -161,16 +167,17 @@ class AssetsController extends Controller {
         }
     }
 
-    private function deleteAsset() {
+    private function deleteAsset()
+    {
         $id = intval($_GET['id'] ?? 0);
-        
+
         // Get old values for logging
         $old_res = mysqli_query($this->conn, "SELECT * FROM assets WHERE id = $id");
         $old_data = mysqli_fetch_assoc($old_res);
 
         $stmt = mysqli_prepare($this->conn, "DELETE FROM assets WHERE id = ?");
         mysqli_stmt_bind_param($stmt, "i", $id);
-        
+
         if (mysqli_stmt_execute($stmt)) {
             log_operation('DELETE', 'assets', $id, $old_data);
             $this->successResponse();
@@ -178,17 +185,18 @@ class AssetsController extends Controller {
             $this->errorResponse('Failed to delete asset');
         }
     }
-    
+
     /**
      * ALM-003: Calculate and record monthly depreciation for all active assets
      */
-    private function calculateDepreciation() {
+    private function calculateDepreciation()
+    {
         $data = $this->getJsonInput();
         $fiscal_period_id = isset($data['fiscal_period_id']) ? intval($data['fiscal_period_id']) : null;
-        
+
         try {
             $depreciations = $this->depreciationService->calculateMonthlyDepreciation($fiscal_period_id);
-            
+
             $this->successResponse([
                 'message' => 'Depreciation calculated successfully',
                 'depreciations' => $depreciations,

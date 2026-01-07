@@ -1,20 +1,23 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
-require_once __DIR__ . '/../LedgerService.php';
-require_once __DIR__ . '/../ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/LedgerService.php';
+require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
 
-class ArController extends Controller {
+class ArController extends Controller
+{
     private $ledgerService;
     private $coaMapping;
-    
-    public function __construct() {
+
+    public function __construct()
+    {
         parent::__construct();
         $this->ledgerService = new LedgerService();
         $this->coaMapping = new ChartOfAccountsMappingService();
     }
 
-    public function handle() {
+    public function handle()
+    {
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
@@ -56,7 +59,8 @@ class ArController extends Controller {
 
     // --- Customer Methods ---
 
-    private function getCustomers() {
+    private function getCustomers()
+    {
         $search = isset($_GET['search']) ? trim($_GET['search']) : '';
         $params = $this->getPaginationParams();
         $limit = $params['limit'];
@@ -73,7 +77,7 @@ class ArController extends Controller {
             $id = intval($_GET['id']);
             $whereClause = "WHERE id = $id";
             // Override limit for single fetch
-            $limit = 1; 
+            $limit = 1;
             $offset = 0;
         }
 
@@ -85,7 +89,7 @@ class ArController extends Controller {
         // Fetch
         $sql = "SELECT * FROM ar_customers $whereClause ORDER BY name ASC LIMIT $limit OFFSET $offset";
         $result = mysqli_query($this->conn, $sql);
-        
+
         $customers = [];
         if ($result && mysqli_num_rows($result) > 0) {
             while ($row = mysqli_fetch_assoc($result)) {
@@ -96,9 +100,10 @@ class ArController extends Controller {
         $this->paginatedResponse($customers, $total, $params['page'], $params['limit']);
     }
 
-    private function createCustomer() {
+    private function createCustomer()
+    {
         $data = $this->getJsonInput();
-        
+
         $name = mysqli_real_escape_string($this->conn, $data['name'] ?? '');
         $phone = mysqli_real_escape_string($this->conn, $data['phone'] ?? '');
         $email = mysqli_real_escape_string($this->conn, $data['email'] ?? '');
@@ -117,13 +122,13 @@ class ArController extends Controller {
         }
         $checkResult = mysqli_query($this->conn, $checkSql);
         if (mysqli_num_rows($checkResult) > 0) {
-           // Provide a warning or specific error? 
-           // Spec says "alert the user when a potential match is detected".
-           // Ideally frontend checks logic for suggestions. Backend enforced uniqueness if reasonable.
-           // Let's not error but return logic handled by frontend suggestion search. 
-           // But if they proceed to Create, we prevent exact duplicates? 
-           // "Prevent the creation of duplicate customer accounts"
-           $this->errorResponse('Customer with this name or phone already exists', 409);
+            // Provide a warning or specific error? 
+            // Spec says "alert the user when a potential match is detected".
+            // Ideally frontend checks logic for suggestions. Backend enforced uniqueness if reasonable.
+            // Let's not error but return logic handled by frontend suggestion search. 
+            // But if they proceed to Create, we prevent exact duplicates? 
+            // "Prevent the creation of duplicate customer accounts"
+            $this->errorResponse('Customer with this name or phone already exists', 409);
         }
 
         $stmt = mysqli_prepare($this->conn, "INSERT INTO ar_customers (name, phone, email, address, tax_number, created_by) VALUES (?, ?, ?, ?, ?, ?)");
@@ -138,10 +143,11 @@ class ArController extends Controller {
         }
     }
 
-    private function updateCustomer() {
+    private function updateCustomer()
+    {
         $data = $this->getJsonInput();
         $id = intval($data['id'] ?? 0);
-        
+
         $name = mysqli_real_escape_string($this->conn, $data['name'] ?? '');
         $phone = mysqli_real_escape_string($this->conn, $data['phone'] ?? '');
         $email = mysqli_real_escape_string($this->conn, $data['email'] ?? '');
@@ -163,14 +169,15 @@ class ArController extends Controller {
         }
     }
 
-    private function deleteCustomer() {
+    private function deleteCustomer()
+    {
         $id = intval($_GET['id'] ?? 0);
-        
+
         // Check for transactions
         $checkSql = "SELECT COUNT(*) as count FROM ar_transactions WHERE customer_id = $id AND is_deleted = 0";
         $checkRes = mysqli_query($this->conn, $checkSql);
         $count = mysqli_fetch_assoc($checkRes)['count'];
-        
+
         if ($count > 0) {
             $this->errorResponse('Cannot delete customer with active transactions', 400);
         }
@@ -188,7 +195,8 @@ class ArController extends Controller {
 
     // --- Ledger/Transaction Methods ---
 
-    private function getLedger() {
+    private function getLedger()
+    {
         $customer_id = intval($_GET['customer_id'] ?? 0);
         if ($customer_id === 0) {
             $this->errorResponse('Customer ID required', 400);
@@ -197,7 +205,7 @@ class ArController extends Controller {
         $params = $this->getPaginationParams();
         $limit = $params['limit'];
         $offset = $params['offset'];
-        
+
         // Filters
         $search = isset($_GET['search']) ? mysqli_real_escape_string($this->conn, trim($_GET['search'])) : '';
         $type = isset($_GET['type']) ? mysqli_real_escape_string($this->conn, trim($_GET['type'])) : '';
@@ -207,9 +215,9 @@ class ArController extends Controller {
 
         $whereClause = "WHERE customer_id = $customer_id";
         if (!$show_deleted) {
-             $whereClause .= " AND is_deleted = 0";
+            $whereClause .= " AND is_deleted = 0";
         }
-        
+
         if (!empty($search)) {
             $whereClause .= " AND (description LIKE '%$search%' OR amount LIKE '%$search%')";
         }
@@ -240,7 +248,7 @@ class ArController extends Controller {
         // Fetch Rows
         $sql = "SELECT * FROM ar_transactions $whereClause ORDER BY transaction_date DESC LIMIT $limit OFFSET $offset";
         $result = mysqli_query($this->conn, $sql);
-        
+
         $transactions = [];
         while ($row = mysqli_fetch_assoc($result)) {
             // Include details about the reference if needed (e.g. invoice items count?)
@@ -267,9 +275,10 @@ class ArController extends Controller {
         ]);
     }
 
-    private function createTransaction() {
+    private function createTransaction()
+    {
         $data = $this->getJsonInput();
-        
+
         $customer_id = intval($data['customer_id'] ?? 0);
         $type = mysqli_real_escape_string($this->conn, $data['type'] ?? 'payment'); // Usually 'payment' for manual entry
         $amount = floatval($data['amount'] ?? 0);
@@ -287,7 +296,7 @@ class ArController extends Controller {
             mysqli_stmt_bind_param($stmt, "isdssi", $customer_id, $type, $amount, $description, $date, $user_id);
             mysqli_stmt_execute($stmt);
             $id = mysqli_insert_id($this->conn);
-            
+
             // Update customer balance
             $this->updateCustomerBalance($customer_id);
 
@@ -300,13 +309,14 @@ class ArController extends Controller {
         }
     }
 
-    private function deleteTransaction() {
+    private function deleteTransaction()
+    {
         // Soft Delete
         $id = intval($_GET['id'] ?? 0);
-        
+
         $stmt = mysqli_prepare($this->conn, "UPDATE ar_transactions SET is_deleted = 1, deleted_at = NOW() WHERE id = ?");
         mysqli_stmt_bind_param($stmt, "i", $id);
-        
+
         if (mysqli_stmt_execute($stmt)) {
             // Update balance
             $res = mysqli_query($this->conn, "SELECT customer_id FROM ar_transactions WHERE id = $id");
@@ -320,37 +330,39 @@ class ArController extends Controller {
         }
     }
 
-    private function restoreTransaction() {
+    private function restoreTransaction()
+    {
         $data = $this->getJsonInput();
         $id = intval($data['id'] ?? 0);
-        
+
         $stmt = mysqli_prepare($this->conn, "UPDATE ar_transactions SET is_deleted = 0, deleted_at = NULL WHERE id = ?");
         mysqli_stmt_bind_param($stmt, "i", $id);
-        
+
         if (mysqli_stmt_execute($stmt)) {
-             // Update balance
-             $res = mysqli_query($this->conn, "SELECT customer_id FROM ar_transactions WHERE id = $id");
-             $row = mysqli_fetch_assoc($res);
-             if ($row) $this->updateCustomerBalance($row['customer_id']);
-             
+            // Update balance
+            $res = mysqli_query($this->conn, "SELECT customer_id FROM ar_transactions WHERE id = $id");
+            $row = mysqli_fetch_assoc($res);
+            if ($row) $this->updateCustomerBalance($row['customer_id']);
+
             log_operation('RESTORE', 'ar_transactions', $id);
             $this->successResponse();
         } else {
             $this->errorResponse(mysqli_error($this->conn));
         }
     }
-    
-    private function updateTransaction() {
+
+    private function updateTransaction()
+    {
         $data = $this->getJsonInput();
         $id = intval($data['id'] ?? 0);
         $amount = floatval($data['amount'] ?? 0);
         $description = mysqli_real_escape_string($this->conn, $data['description'] ?? '');
-        
+
         // Check time constraint (24-48h)
         $checkRes = mysqli_query($this->conn, "SELECT created_at, customer_id FROM ar_transactions WHERE id = $id");
         $row = mysqli_fetch_assoc($checkRes);
         if (!$row) $this->errorResponse('Transaction not found', 404);
-        
+
         $created_time = strtotime($row['created_at']);
         if (time() - $created_time > 48 * 3600) {
             $this->errorResponse('Cannot edit transaction after 48 hours', 403);
@@ -361,9 +373,9 @@ class ArController extends Controller {
             $stmt = mysqli_prepare($this->conn, "UPDATE ar_transactions SET amount = ?, description = ? WHERE id = ?");
             mysqli_stmt_bind_param($stmt, "dsi", $amount, $description, $id);
             mysqli_stmt_execute($stmt);
-            
+
             $this->updateCustomerBalance($row['customer_id']);
-            
+
             mysqli_commit($this->conn);
             log_operation('UPDATE', 'ar_transactions', $id, null, $data);
             $this->successResponse();
@@ -373,7 +385,8 @@ class ArController extends Controller {
         }
     }
 
-    private function updateCustomerBalance($customer_id) {
+    private function updateCustomerBalance($customer_id)
+    {
         $sql = "
             UPDATE ar_customers 
             SET current_balance = (
@@ -394,27 +407,28 @@ class ArController extends Controller {
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
     }
-    
+
     /**
      * Get customer statement with aging analysis
      */
-    private function getCustomerStatement() {
+    private function getCustomerStatement()
+    {
         $customer_id = intval($_GET['customer_id'] ?? 0);
         $start_date = $_GET['start_date'] ?? null;
         $end_date = $_GET['end_date'] ?? date('Y-m-d');
-        
+
         if ($customer_id <= 0) {
             $this->errorResponse('Customer ID is required');
         }
-        
+
         // Get customer info
         $customer_result = mysqli_query($this->conn, "SELECT * FROM ar_customers WHERE id = $customer_id");
         $customer = mysqli_fetch_assoc($customer_result);
-        
+
         if (!$customer) {
             $this->errorResponse('Customer not found', 404);
         }
-        
+
         // Build date filter
         $date_filter = "";
         if ($start_date) {
@@ -423,50 +437,54 @@ class ArController extends Controller {
         }
         $end_esc = mysqli_real_escape_string($this->conn, $end_date);
         $date_filter .= " AND t.transaction_date <= '$end_esc'";
-        
+
         // Get opening balance
         $opening_balance = 0;
         if ($start_date) {
-            $opening_result = mysqli_query($this->conn, 
+            $opening_result = mysqli_query(
+                $this->conn,
                 "SELECT 
                     SUM(CASE WHEN type = 'invoice' THEN amount ELSE 0 END) as total_debit,
                     SUM(CASE WHEN type IN ('payment', 'return') THEN amount ELSE 0 END) as total_credit
                  FROM ar_transactions
-                 WHERE customer_id = $customer_id AND is_deleted = 0 AND transaction_date < '$start_esc'");
+                 WHERE customer_id = $customer_id AND is_deleted = 0 AND transaction_date < '$start_esc'"
+            );
             if ($opening_result && mysqli_num_rows($opening_result) > 0) {
                 $opening_row = mysqli_fetch_assoc($opening_result);
                 $opening_balance = floatval($opening_row['total_debit'] ?? 0) - floatval($opening_row['total_credit'] ?? 0);
             }
         }
-        
+
         // Get transactions
-        $result = mysqli_query($this->conn, 
+        $result = mysqli_query(
+            $this->conn,
             "SELECT t.*, u.username as created_by_name,
                     i.invoice_number, i.total_amount as invoice_total
              FROM ar_transactions t
              LEFT JOIN users u ON t.created_by = u.id
              LEFT JOIN invoices i ON t.reference_type = 'invoices' AND t.reference_id = i.id
              WHERE t.customer_id = $customer_id AND t.is_deleted = 0 $date_filter
-             ORDER BY t.transaction_date ASC, t.id ASC");
-        
+             ORDER BY t.transaction_date ASC, t.id ASC"
+        );
+
         $transactions = [];
         $running_balance = $opening_balance;
-        
+
         while ($row = mysqli_fetch_assoc($result)) {
             $amount = floatval($row['amount']);
-            
+
             if ($row['type'] === 'invoice') {
                 $running_balance += $amount;
             } else {
                 $running_balance -= $amount;
             }
-            
+
             // Calculate days outstanding for invoices
             $days_outstanding = null;
             if ($row['type'] === 'invoice') {
                 $days_outstanding = (time() - strtotime($row['transaction_date'])) / 86400;
             }
-            
+
             $transactions[] = [
                 'id' => intval($row['id']),
                 'type' => $row['type'],
@@ -482,9 +500,10 @@ class ArController extends Controller {
                 'created_by_name' => $row['created_by_name']
             ];
         }
-        
+
         // Calculate aging
-        $aging_result = mysqli_query($this->conn, 
+        $aging_result = mysqli_query(
+            $this->conn,
             "SELECT 
                 SUM(CASE WHEN transaction_date >= DATE_SUB('$end_esc', INTERVAL 30 DAY) THEN amount ELSE 0 END) as current,
                 SUM(CASE WHEN transaction_date >= DATE_SUB('$end_esc', INTERVAL 60 DAY) 
@@ -494,10 +513,11 @@ class ArController extends Controller {
                 SUM(CASE WHEN transaction_date < DATE_SUB('$end_esc', INTERVAL 90 DAY) THEN amount ELSE 0 END) as over_90
              FROM ar_transactions
              WHERE customer_id = $customer_id AND type = 'invoice' AND is_deleted = 0
-             AND transaction_date <= '$end_esc'");
-        
+             AND transaction_date <= '$end_esc'"
+        );
+
         $aging = mysqli_fetch_assoc($aging_result);
-        
+
         $this->successResponse([
             'customer' => $customer,
             'period' => [

@@ -1,23 +1,26 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
-require_once __DIR__ . '/../LedgerService.php';
-require_once __DIR__ . '/../InventoryCostingService.php';
-require_once __DIR__ . '/../ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/LedgerService.php';
+require_once __DIR__ . '/../Services/InventoryCostingService.php';
+require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
 
-class SalesController extends Controller {
+class SalesController extends Controller
+{
     private $ledgerService;
     private $costingService;
     private $coaMapping;
-    
-    public function __construct() {
+
+    public function __construct()
+    {
         parent::__construct();
         $this->ledgerService = new LedgerService();
         $this->costingService = new InventoryCostingService();
         $this->coaMapping = new ChartOfAccountsMappingService();
     }
 
-    public function handle() {
+    public function handle()
+    {
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
@@ -38,7 +41,8 @@ class SalesController extends Controller {
         }
     }
 
-    private function getInvoices() {
+    private function getInvoices()
+    {
         $params = $this->getPaginationParams();
         $limit = $params['limit'];
         $offset = $params['offset'];
@@ -73,9 +77,10 @@ class SalesController extends Controller {
         $this->paginatedResponse($invoices, $total, $params['page'], $params['limit']);
     }
 
-    private function getInvoiceDetails() {
+    private function getInvoiceDetails()
+    {
         $invoice_id = intval($_GET['id'] ?? 0);
-        
+
         $result = mysqli_query($this->conn, "
             SELECT i.*, c.name as customer_name, c.phone as customer_phone, c.tax_number as customer_tax
             FROM invoices i
@@ -83,11 +88,11 @@ class SalesController extends Controller {
             WHERE i.id = $invoice_id
         ");
         $invoice = mysqli_fetch_assoc($result);
-        
+
         if (!$invoice) {
             $this->errorResponse('Invoice not found', 404);
         }
-        
+
         $result = mysqli_query($this->conn, "
             SELECT ii.*, p.name as product_name
             FROM invoice_items ii
@@ -98,44 +103,45 @@ class SalesController extends Controller {
         while ($row = mysqli_fetch_assoc($result)) {
             $items[] = $row;
         }
-        
+
         $invoice['items'] = $items;
         $this->successResponse(['data' => $invoice]);
     }
 
-    private function createInvoice() {
+    private function createInvoice()
+    {
         $data = $this->getJsonInput();
         $invoice_number = $data['invoice_number'] ?? '';
         $items = $data['items'] ?? [];
         $payment_type = mysqli_real_escape_string($this->conn, $data['payment_type'] ?? 'cash');
         $customer_id = intval($data['customer_id'] ?? 0);
         $vat_rate = floatval($data['vat_rate'] ?? 0.00);
-        
+
         if ($payment_type === 'credit' && $customer_id === 0) {
             $this->errorResponse('Customer is required for credit sales', 400);
         }
-        
+
         if (empty($items)) {
             $this->errorResponse('Invoice must have at least one item', 400);
         }
-        
+
         mysqli_begin_transaction($this->conn);
-        
+
         try {
             // Generate voucher number if not provided
             if (empty($invoice_number)) {
                 $invoice_number = $this->ledgerService->getNextVoucherNumber('INV');
             }
-            
+
             // Calculate subtotal and total
             $subtotal = 0;
             $total_cogs = 0;
-            
+
             foreach ($items as $item) {
                 $item_subtotal = floatval($item['quantity']) * floatval($item['unit_price']);
                 $subtotal += $item_subtotal;
             }
-            
+
             // Calculate VAT
             $vat_amount = $subtotal * ($vat_rate / 100);
             $total = $subtotal + $vat_amount;
@@ -143,7 +149,7 @@ class SalesController extends Controller {
 
             $user_id = $_SESSION['user_id'];
             $voucher_number = $this->ledgerService->getNextVoucherNumber('VOU');
-            
+
             // Insert invoice
             $stmt = mysqli_prepare($this->conn, "INSERT INTO invoices (invoice_number, voucher_number, total_amount, subtotal, vat_rate, vat_amount, user_id, payment_type, customer_id, amount_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             mysqli_stmt_bind_param($stmt, "ssdddddsid", $invoice_number, $voucher_number, $total, $subtotal, $vat_rate, $vat_amount, $user_id, $payment_type, $customer_id, $amount_paid);
@@ -157,16 +163,16 @@ class SalesController extends Controller {
                 $quantity = intval($item['quantity']);
                 $unit_price = floatval($item['unit_price']);
                 $item_subtotal = $quantity * $unit_price;
-                
+
                 // Calculate COGS using FIFO
                 $item_cogs = $this->costingService->calculateCOGS_FIFO($product_id, $quantity);
                 $total_cogs += $item_cogs;
-                
+
                 $stmt = mysqli_prepare($this->conn, "INSERT INTO invoice_items (invoice_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)");
                 mysqli_stmt_bind_param($stmt, "iiidd", $invoice_id, $product_id, $quantity, $unit_price, $item_subtotal);
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
-                
+
                 // Update stock
                 $stmt = mysqli_prepare($this->conn, "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?");
                 mysqli_stmt_bind_param($stmt, "ii", $quantity, $product_id);
@@ -176,9 +182,9 @@ class SalesController extends Controller {
 
             // Post to General Ledger - Double Entry
             $gl_entries = [];
-            
+
             $accounts = $this->coaMapping->getStandardAccounts();
-            
+
             if ($payment_type === 'cash') {
                 // Cash Sale: Debit Cash, Credit Sales Revenue
                 $gl_entries[] = [
@@ -194,7 +200,7 @@ class SalesController extends Controller {
                 // - Credit Sales Revenue for subtotal
                 // - Credit Output VAT for VAT amount
                 $outstanding_amount = $total - $amount_paid;
-                
+
                 if ($outstanding_amount > 0) {
                     $gl_entries[] = [
                         'account_code' => $accounts['accounts_receivable'],
@@ -203,7 +209,7 @@ class SalesController extends Controller {
                         'description' => "فاتورة مبيعات آجلة رقم $invoice_number (المبلغ المتبقي)"
                     ];
                 }
-                
+
                 // If partial payment, debit cash
                 if ($amount_paid > 0) {
                     $gl_entries[] = [
@@ -214,7 +220,7 @@ class SalesController extends Controller {
                     ];
                 }
             }
-            
+
             // Credit Sales Revenue
             $gl_entries[] = [
                 'account_code' => $accounts['sales_revenue'],
@@ -222,7 +228,7 @@ class SalesController extends Controller {
                 'amount' => $subtotal,
                 'description' => "مبيعات - فاتورة رقم $invoice_number"
             ];
-            
+
             // Credit Output VAT (if applicable)
             if ($vat_amount > 0) {
                 $gl_entries[] = [
@@ -232,10 +238,10 @@ class SalesController extends Controller {
                     'description' => "ضريبة القيمة المضافة - فاتورة رقم $invoice_number"
                 ];
             }
-            
+
             // Post sales transaction
             $this->ledgerService->postTransaction($gl_entries, 'invoices', $invoice_id, $voucher_number);
-            
+
             // Post COGS transaction
             if ($total_cogs > 0) {
                 $cogs_entries = [
@@ -278,47 +284,49 @@ class SalesController extends Controller {
                 // Update Customer Balance
                 $this->updateCustomerBalance($customer_id);
             }
-            
+
             mysqli_commit($this->conn);
             log_operation('CREATE', 'invoices', $invoice_id, null, $data);
             $this->successResponse(['id' => $invoice_id, 'invoice_number' => $invoice_number, 'voucher_number' => $voucher_number]);
-
         } catch (Exception $e) {
             mysqli_rollback($this->conn);
             $this->errorResponse($e->getMessage());
         }
     }
 
-    private function deleteInvoice() {
+    private function deleteInvoice()
+    {
         $id = intval($_GET['id'] ?? 0);
-        
+
         // Get invoice details
         $result = mysqli_query($this->conn, "SELECT i.*, i.voucher_number FROM invoices i WHERE i.id = $id");
         $invoice = mysqli_fetch_assoc($result);
-        
+
         if (!$invoice) {
             $this->errorResponse('Invoice not found', 404);
         }
-        
+
         // Check if already reversed
-        $check_reversed = mysqli_query($this->conn, 
-            "SELECT COUNT(*) as count FROM general_ledger WHERE reference_type = 'invoices' AND reference_id = $id AND description LIKE '%Reversal%'");
+        $check_reversed = mysqli_query(
+            $this->conn,
+            "SELECT COUNT(*) as count FROM general_ledger WHERE reference_type = 'invoices' AND reference_id = $id AND description LIKE '%Reversal%'"
+        );
         $reversed_row = mysqli_fetch_assoc($check_reversed);
         if ($reversed_row['count'] > 0) {
             $this->errorResponse('Invoice has already been reversed', 400);
         }
-        
+
         $customer_id = isset($invoice['customer_id']) ? intval($invoice['customer_id']) : 0;
         $voucher_number = $invoice['voucher_number'] ?? null;
-        
+
         $result = mysqli_query($this->conn, "SELECT product_id, quantity FROM invoice_items WHERE invoice_id = $id");
         $items = [];
         while ($row = mysqli_fetch_assoc($result)) {
             $items[] = $row;
         }
-        
+
         mysqli_begin_transaction($this->conn);
-        
+
         try {
             // Mark invoice as reversed (soft delete)
             $user_id = $_SESSION['user_id'] ?? null;
@@ -326,7 +334,7 @@ class SalesController extends Controller {
             mysqli_stmt_bind_param($stmt, "ii", $user_id, $id);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
-            
+
             // Restore stock
             foreach ($items as $item) {
                 $stmt = mysqli_prepare($this->conn, "UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?");
@@ -350,7 +358,7 @@ class SalesController extends Controller {
             mysqli_stmt_bind_param($stmt, "i", $id);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
-            
+
             mysqli_commit($this->conn);
             log_operation('REVERSE', 'invoices', $id, null, ['voucher_number' => $voucher_number]);
 
@@ -360,14 +368,14 @@ class SalesController extends Controller {
             }
 
             $this->successResponse(['message' => 'Invoice reversed successfully']);
-
         } catch (Exception $e) {
             mysqli_rollback($this->conn);
             $this->errorResponse($e->getMessage());
         }
     }
 
-    private function updateCustomerBalance($customer_id) {
+    private function updateCustomerBalance($customer_id)
+    {
         // Helper to update balance (Duplicated from ArController, ideally shared in a Service/Model)
         $sql = "
             UPDATE ar_customers 

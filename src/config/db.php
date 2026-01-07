@@ -4,12 +4,13 @@ require_once 'config.php';
 /**
  * Get database connection
  */
-function get_db_connection() {
+function get_db_connection()
+{
     static $conn = null;
-    
+
     if ($conn === null) {
         $conn = mysqli_connect(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-        
+
         if (!$conn) {
             // Try to create database if it doesn't exist
             $conn = mysqli_connect(DB_HOST, DB_USER, DB_PASS);
@@ -24,7 +25,7 @@ function get_db_connection() {
                 throw new Exception("Database connection failed: " . mysqli_connect_error());
             }
         }
-        
+
         if (!mysqli_set_charset($conn, "utf8mb4")) {
             throw new Exception("Failed to set charset: " . mysqli_error($conn));
         }
@@ -35,14 +36,15 @@ function get_db_connection() {
 /**
  * Initialize database tables
  */
-function init_database() {
+function init_database()
+{
     try {
         $conn = get_db_connection();
     } catch (Exception $e) {
         error_log("Database initialization failed: " . $e->getMessage());
         throw $e;
     }
-    
+
     // Users table
     $users_sql = "CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -57,12 +59,12 @@ function init_database() {
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
 
-    
+
     if (!mysqli_query($conn, $users_sql)) {
         error_log("Failed to create users table: " . mysqli_error($conn));
         throw new Exception("Failed to create users table: " . mysqli_error($conn));
     }
-    
+
     // Sessions table
     $sessions_sql = "CREATE TABLE IF NOT EXISTS sessions (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -74,12 +76,12 @@ function init_database() {
         expires_at DATETIME NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $sessions_sql)) {
         error_log("Failed to create sessions table: " . mysqli_error($conn));
         throw new Exception("Failed to create sessions table: " . mysqli_error($conn));
     }
-    
+
     // Migrate existing sessions table if expires_at is TIMESTAMP
     $check_result = mysqli_query($conn, "SHOW COLUMNS FROM sessions WHERE Field = 'expires_at'");
     if ($check_result && $check_result instanceof mysqli_result && mysqli_num_rows($check_result) > 0) {
@@ -93,7 +95,7 @@ function init_database() {
             }
         }
     }
-    
+
     // Check if new columns exist in users table
     $check_users = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'role'");
     if ($check_users && $check_users instanceof mysqli_result && mysqli_num_rows($check_users) == 0) {
@@ -113,7 +115,7 @@ function init_database() {
         mysqli_query($conn, "ALTER TABLE sessions ADD COLUMN ip_address VARCHAR(45)");
         mysqli_query($conn, "ALTER TABLE sessions ADD COLUMN user_agent VARCHAR(255)");
     }
-    
+
     // Login attempts table (for throttling)
     $login_attempts_sql = "CREATE TABLE IF NOT EXISTS login_attempts (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -123,12 +125,12 @@ function init_database() {
         locked_until TIMESTAMP NULL,
         INDEX idx_username (username)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $login_attempts_sql)) {
         error_log("Failed to create login_attempts table: " . mysqli_error($conn));
         throw new Exception("Failed to create login_attempts table: " . mysqli_error($conn));
     }
-    
+
     // Products table
     $products_sql = "CREATE TABLE IF NOT EXISTS products (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -144,12 +146,12 @@ function init_database() {
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
 
-    
+
     if (!mysqli_query($conn, $products_sql)) {
         error_log("Failed to create products table: " . mysqli_error($conn));
         throw new Exception("Failed to create products table: " . mysqli_error($conn));
     }
-    
+
     // Purchases table
     $purchases_sql = "CREATE TABLE IF NOT EXISTS purchases (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -163,12 +165,12 @@ function init_database() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
 
-    
+
     if (!mysqli_query($conn, $purchases_sql)) {
         error_log("Failed to create purchases table: " . mysqli_error($conn));
         throw new Exception("Failed to create purchases table: " . mysqli_error($conn));
     }
-    
+
     // Invoices table
     $invoices_sql = "CREATE TABLE IF NOT EXISTS invoices (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -180,12 +182,12 @@ function init_database() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
 
-    
+
     if (!mysqli_query($conn, $invoices_sql)) {
         error_log("Failed to create invoices table: " . mysqli_error($conn));
         throw new Exception("Failed to create invoices table: " . mysqli_error($conn));
     }
-    
+
     // Invoice items table
     $invoice_items_sql = "CREATE TABLE IF NOT EXISTS invoice_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -197,7 +199,7 @@ function init_database() {
         FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     // Categories table
     $categories_table_sql = "CREATE TABLE IF NOT EXISTS categories (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -207,7 +209,7 @@ function init_database() {
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
 
-    
+
     if (!mysqli_query($conn, $categories_table_sql)) {
         error_log("Failed to create categories table: " . mysqli_error($conn));
         throw new Exception("Failed to create categories table: " . mysqli_error($conn));
@@ -232,7 +234,7 @@ function init_database() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $telescope_sql)) {
         error_log("Failed to create telescope table: " . mysqli_error($conn));
         throw new Exception("Failed to create telescope table: " . mysqli_error($conn));
@@ -244,8 +246,8 @@ function init_database() {
         setting_value TEXT,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
-    
+
+
     if (!mysqli_query($conn, $settings_sql)) {
         error_log("Failed to create settings table: " . mysqli_error($conn));
         throw new Exception("Failed to create settings table: " . mysqli_error($conn));
@@ -265,7 +267,7 @@ function init_database() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $ar_customers_sql)) {
         error_log("Failed to create ar_customers table: " . mysqli_error($conn));
         throw new Exception("Failed to create ar_customers table: " . mysqli_error($conn));
@@ -288,7 +290,7 @@ function init_database() {
         FOREIGN KEY (customer_id) REFERENCES ar_customers(id) ON DELETE CASCADE,
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $ar_transactions_sql)) {
         error_log("Failed to create ar_transactions table: " . mysqli_error($conn));
         throw new Exception("Failed to create ar_transactions table: " . mysqli_error($conn));
@@ -308,12 +310,12 @@ function init_database() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
         INDEX idx_account_code (account_code)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $expenses_sql)) {
         error_log("Failed to create expenses table: " . mysqli_error($conn));
         throw new Exception("Failed to create expenses table: " . mysqli_error($conn));
     }
-    
+
     // Add account_code column to expenses if it doesn't exist (migration)
     $check_exp_account = mysqli_query($conn, "SHOW COLUMNS FROM expenses LIKE 'account_code'");
     if ($check_exp_account && $check_exp_account instanceof mysqli_result && mysqli_num_rows($check_exp_account) == 0) {
@@ -335,7 +337,7 @@ function init_database() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $assets_sql)) {
         error_log("Failed to create assets table: " . mysqli_error($conn));
         throw new Exception("Failed to create assets table: " . mysqli_error($conn));
@@ -353,7 +355,7 @@ function init_database() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $revenues_sql)) {
         error_log("Failed to create revenues table: " . mysqli_error($conn));
         throw new Exception("Failed to create revenues table: " . mysqli_error($conn));
@@ -374,7 +376,7 @@ function init_database() {
         INDEX idx_account_type (account_type),
         INDEX idx_parent_id (parent_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $coa_sql)) {
         error_log("Failed to create chart_of_accounts table: " . mysqli_error($conn));
         throw new Exception("Failed to create chart_of_accounts table: " . mysqli_error($conn));
@@ -403,7 +405,7 @@ function init_database() {
         INDEX idx_fiscal_period (fiscal_period_id),
         INDEX idx_reference (reference_type, reference_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $gl_sql)) {
         error_log("Failed to create general_ledger table: " . mysqli_error($conn));
         throw new Exception("Failed to create general_ledger table: " . mysqli_error($conn));
@@ -428,12 +430,12 @@ function init_database() {
         INDEX idx_closed (is_closed),
         INDEX idx_locked (is_locked)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $fiscal_periods_sql)) {
         error_log("Failed to create fiscal_periods table: " . mysqli_error($conn));
         throw new Exception("Failed to create fiscal_periods table: " . mysqli_error($conn));
     }
-    
+
     // Add period locking columns if not exist
     $check_period_locked = mysqli_query($conn, "SHOW COLUMNS FROM fiscal_periods LIKE 'is_locked'");
     if ($check_period_locked && $check_period_locked instanceof mysqli_result && mysqli_num_rows($check_period_locked) == 0) {
@@ -460,7 +462,7 @@ function init_database() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $ap_suppliers_sql)) {
         error_log("Failed to create ap_suppliers table: " . mysqli_error($conn));
         throw new Exception("Failed to create ap_suppliers table: " . mysqli_error($conn));
@@ -485,7 +487,7 @@ function init_database() {
         INDEX idx_supplier (supplier_id),
         INDEX idx_reference (reference_type, reference_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $ap_transactions_sql)) {
         error_log("Failed to create ap_transactions table: " . mysqli_error($conn));
         throw new Exception("Failed to create ap_transactions table: " . mysqli_error($conn));
@@ -512,7 +514,7 @@ function init_database() {
         INDEX idx_unsold (product_id, is_sold),
         INDEX idx_reference (reference_type, reference_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $inventory_costing_sql)) {
         error_log("Failed to create inventory_costing table: " . mysqli_error($conn));
         throw new Exception("Failed to create inventory_costing table: " . mysqli_error($conn));
@@ -535,7 +537,7 @@ function init_database() {
         INDEX idx_asset (asset_id),
         INDEX idx_date (depreciation_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $asset_depreciation_sql)) {
         error_log("Failed to create asset_depreciation table: " . mysqli_error($conn));
         throw new Exception("Failed to create asset_depreciation table: " . mysqli_error($conn));
@@ -550,7 +552,7 @@ function init_database() {
         format VARCHAR(50) DEFAULT '{PREFIX}-{NUMBER}',
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $document_sequences_sql)) {
         error_log("Failed to create document_sequences table: " . mysqli_error($conn));
         throw new Exception("Failed to create document_sequences table: " . mysqli_error($conn));
@@ -575,7 +577,7 @@ function init_database() {
         INDEX idx_date (reconciliation_date),
         INDEX idx_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $reconciliations_sql)) {
         error_log("Failed to create reconciliations table: " . mysqli_error($conn));
         throw new Exception("Failed to create reconciliations table: " . mysqli_error($conn));
@@ -598,14 +600,14 @@ function init_database() {
         INDEX idx_date (voucher_date),
         INDEX idx_account (account_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $journal_vouchers_sql)) {
         error_log("Failed to create journal_vouchers table: " . mysqli_error($conn));
         throw new Exception("Failed to create journal_vouchers table: " . mysqli_error($conn));
     }
 
     // Accrual Accounting Tables
-    
+
     // Payroll Entries table
     $payroll_sql = "CREATE TABLE IF NOT EXISTS payroll_entries (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -622,7 +624,7 @@ function init_database() {
         INDEX idx_date (payroll_date),
         INDEX idx_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $payroll_sql)) {
         error_log("Failed to create payroll_entries table: " . mysqli_error($conn));
         throw new Exception("Failed to create payroll_entries table: " . mysqli_error($conn));
@@ -642,7 +644,7 @@ function init_database() {
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
         INDEX idx_date (payment_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $prepayments_sql)) {
         error_log("Failed to create prepayments table: " . mysqli_error($conn));
         throw new Exception("Failed to create prepayments table: " . mysqli_error($conn));
@@ -661,7 +663,7 @@ function init_database() {
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
         INDEX idx_date (received_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $unearned_revenue_sql)) {
         error_log("Failed to create unearned_revenue table: " . mysqli_error($conn));
         throw new Exception("Failed to create unearned_revenue table: " . mysqli_error($conn));
@@ -688,12 +690,12 @@ function init_database() {
         INDEX idx_product (product_id),
         INDEX idx_processed (is_processed)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $inventory_counts_sql)) {
         error_log("Failed to create inventory_counts table: " . mysqli_error($conn));
         throw new Exception("Failed to create inventory_counts table: " . mysqli_error($conn));
     }
-    
+
     // Add inventory method setting
     $check_inv_method = mysqli_query($conn, "SELECT COUNT(*) as count FROM settings WHERE setting_key = 'inventory_method'");
     $inv_method_row = mysqli_fetch_assoc($check_inv_method);
@@ -721,7 +723,7 @@ function init_database() {
         INDEX idx_status (status),
         INDEX idx_hash (hash)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $zatca_einvoices_sql)) {
         error_log("Failed to create zatca_einvoices table: " . mysqli_error($conn));
         throw new Exception("Failed to create zatca_einvoices table: " . mysqli_error($conn));
@@ -750,7 +752,7 @@ function init_database() {
         INDEX idx_next_due (next_due_date),
         INDEX idx_auto_process (auto_process)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $recurring_transactions_sql)) {
         error_log("Failed to create recurring_transactions table: " . mysqli_error($conn));
         throw new Exception("Failed to create recurring_transactions table: " . mysqli_error($conn));
@@ -772,7 +774,7 @@ function init_database() {
         INDEX idx_status (status),
         INDEX idx_type (batch_type)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $batch_processing_sql)) {
         error_log("Failed to create batch_processing table: " . mysqli_error($conn));
         throw new Exception("Failed to create batch_processing table: " . mysqli_error($conn));
@@ -792,7 +794,7 @@ function init_database() {
         INDEX idx_batch (batch_id),
         INDEX idx_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $batch_items_sql)) {
         error_log("Failed to create batch_items table: " . mysqli_error($conn));
         throw new Exception("Failed to create batch_items table: " . mysqli_error($conn));
@@ -845,7 +847,7 @@ function init_database() {
         }
     }
 
-    
+
     // Migrations for existing tables
     // Update products table
     $check_products = mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'unit_name'");
@@ -854,11 +856,11 @@ function init_database() {
         mysqli_query($conn, "ALTER TABLE products ADD COLUMN items_per_unit INT DEFAULT 1");
         mysqli_query($conn, "ALTER TABLE products ADD COLUMN sub_unit_name VARCHAR(50) DEFAULT 'حبة'");
     }
-    
+
     // Change category to store ID or keep as text but link? 
     // Usually easier to keep as text for simple systems but dropdown from table.
     // Let's keep it as text in products but synced from categories table for now to avoid breaking changes.
-    
+
     // Update purchases table
     $check_purchases = mysqli_query($conn, "SHOW COLUMNS FROM purchases LIKE 'unit_type'");
     if ($check_purchases && $check_purchases instanceof mysqli_result && mysqli_num_rows($check_purchases) == 0) {
@@ -941,7 +943,7 @@ function init_database() {
         mysqli_query($conn, "ALTER TABLE purchases ADD CONSTRAINT fk_purchases_approved_by FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL");
         mysqli_query($conn, "ALTER TABLE purchases ADD INDEX idx_approval_status (approval_status)");
     }
-    
+
     // Add approval threshold setting
     $check_threshold = mysqli_query($conn, "SELECT COUNT(*) as count FROM settings WHERE setting_key = 'purchase_approval_threshold'");
     $threshold_row = mysqli_fetch_assoc($check_threshold);
@@ -962,14 +964,14 @@ function init_database() {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
+
     if (!mysqli_query($conn, $requests_sql)) {
         error_log("Failed to create purchase_requests table: " . mysqli_error($conn));
         throw new Exception("Failed to create purchase_requests table: " . mysqli_error($conn));
     }
 
 
-    
+
     // Seed default user if not exists
     try {
         seed_default_user();
@@ -977,7 +979,7 @@ function init_database() {
         error_log("Failed to seed default user: " . $e->getMessage());
         // Don't throw, just log - seeding is not critical
     }
-    
+
     // Seed products if table is empty
     try {
         seed_products();
@@ -1016,23 +1018,24 @@ function init_database() {
 /**
  * Seed default user
  */
-function seed_default_user() {
+function seed_default_user()
+{
     $conn = get_db_connection();
-    
+
     // Check if users table exists
     $table_check = mysqli_query($conn, "SHOW TABLES LIKE 'users'");
     if (mysqli_num_rows($table_check) == 0) {
         // Table doesn't exist yet, will be created by init_database
         return;
     }
-    
+
     $result = mysqli_query($conn, "SELECT COUNT(*) as count FROM users");
     if (!$result) {
         return;
     }
-    
+
     $row = mysqli_fetch_assoc($result);
-    
+
     if ($row['count'] == 0) {
         $username = 'admin';
         $password = password_hash('admin123', PASSWORD_DEFAULT);
@@ -1052,15 +1055,16 @@ function seed_default_user() {
 /**
  * Seed products with realistic data
  */
-function seed_products() {
+function seed_products()
+{
     $conn = get_db_connection();
-    
+
     $result = mysqli_query($conn, "SELECT COUNT(*) as count FROM products");
     $row = mysqli_fetch_assoc($result);
-    
+
     if ($row['count'] == 0) {
         $categories = ['فواكه', 'خضروات', 'ألبان', 'مشروبات', 'تسالي', 'لحوم', 'مخبوزات', 'معلبات', 'مجمدات', 'أدوات تنظيف'];
-        
+
         // Seed categories table
         foreach ($categories as $cat) {
             $cat_esc = mysqli_real_escape_string($conn, $cat);
@@ -1079,9 +1083,9 @@ function seed_products() {
             'مجمدات' => ['آيس كريم', 'خضروات مجمدة', 'بيتزا مجمدة', 'بطاطس مجمدة', 'توت مجمد', 'دجاج مجمد', 'سمك مجمد', 'وجبات مجمدة', 'زبادي مجمدة', 'وافل مجمد'],
             'أدوات تنظيف' => ['منظف', 'صابون', 'شامبو', 'معجون أسنان', 'مناشف ورقية', 'أكياس قمامة', 'إسفنج', 'كلور', 'مطهر', 'منعم أقمشة']
         ];
-        
+
         $stmt = mysqli_prepare($conn, "INSERT INTO products (name, description, category, unit_price, minimum_profit_margin, stock_quantity) VALUES (?, ?, ?, ?, ?, ?)");
-        
+
         foreach ($categories as $category) {
             $products = $product_names[$category];
             foreach ($products as $product_name) {
@@ -1089,14 +1093,14 @@ function seed_products() {
                 $unit_price = rand(50, 5000) / 100; // Random price between 0.50 and 50.00
                 $min_margin = rand(10, 500) / 100; // Random margin between 0.10 and 5.00
                 $stock = rand(10, 200);
-                
+
                 mysqli_stmt_bind_param($stmt, "sssddi", $product_name, $description, $category, $unit_price, $min_margin, $stock);
                 mysqli_stmt_execute($stmt);
             }
         }
-        
+
         mysqli_stmt_close($stmt);
-        
+
         // Seed some purchases
         seed_purchases();
     }
@@ -1105,44 +1109,46 @@ function seed_products() {
 /**
  * Seed purchases
  */
-function seed_purchases() {
+function seed_purchases()
+{
     $conn = get_db_connection();
-    
+
     $result = mysqli_query($conn, "SELECT id FROM products LIMIT 50");
     $product_ids = [];
     while ($row = mysqli_fetch_assoc($result)) {
         $product_ids[] = $row['id'];
     }
-    
+
     $stmt = mysqli_prepare($conn, "INSERT INTO purchases (product_id, quantity, invoice_price, purchase_date) VALUES (?, ?, ?, ?)");
-    
+
     // Create purchases for the last 30 days
     for ($i = 0; $i < 50; $i++) {
         $product_id = $product_ids[array_rand($product_ids)];
         $quantity = rand(5, 50);
-        
+
         // Get product unit price to set reasonable invoice price
         $prod_result = mysqli_query($conn, "SELECT unit_price FROM products WHERE id = $product_id");
         $prod_row = mysqli_fetch_assoc($prod_result);
         $base_price = $prod_row['unit_price'];
         $invoice_price = $base_price * 0.7; // Purchase price is 70% of unit price
-        
+
         $days_ago = rand(0, 30);
         $purchase_date = date('Y-m-d H:i:s', strtotime("-$days_ago days"));
-        
+
         mysqli_stmt_bind_param($stmt, "iids", $product_id, $quantity, $invoice_price, $purchase_date);
         mysqli_stmt_execute($stmt);
     }
-    
+
     mysqli_stmt_close($stmt);
 }
 
 /**
  * Seed default settings
  */
-function seed_settings() {
+function seed_settings()
+{
     $conn = get_db_connection();
-    
+
     $default_settings = [
         'store_name' => 'سوبر ماركت الوفاء',
         'store_address' => 'اليمن - صنعاء - شارع الستين',
@@ -1174,16 +1180,17 @@ try {
 /**
  * Log a system operation in the telescope table
  */
-function log_operation($operation, $table_name, $record_id = null, $old_values = null, $new_values = null) {
+function log_operation($operation, $table_name, $record_id = null, $old_values = null, $new_values = null)
+{
     try {
         $conn = get_db_connection();
         $user_id = $_SESSION['user_id'] ?? null;
         $ip = $_SERVER['REMOTE_ADDR'] ?? null;
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
-        
+
         $old_json = $old_values ? json_encode($old_values, JSON_UNESCAPED_UNICODE) : null;
         $new_json = $new_values ? json_encode($new_values, JSON_UNESCAPED_UNICODE) : null;
-        
+
         $sql = "INSERT INTO telescope (user_id, operation, table_name, record_id, old_values, new_values, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_bind_param($stmt, "ississss", $user_id, $operation, $table_name, $record_id, $old_json, $new_json, $ip, $ua);
@@ -1197,12 +1204,13 @@ function log_operation($operation, $table_name, $record_id = null, $old_values =
 /**
  * Seed invoices
  */
-function seed_invoices() {
+function seed_invoices()
+{
     $conn = get_db_connection();
-    
+
     $result = mysqli_query($conn, "SELECT COUNT(*) as count FROM invoices");
     $row = mysqli_fetch_assoc($result);
-    
+
     if ($row['count'] == 0) {
         $result = mysqli_query($conn, "SELECT id, unit_price FROM products LIMIT 5");
         $products = [];
@@ -1221,7 +1229,7 @@ function seed_invoices() {
             $invoice_number = "INV-PREVIEW-" . (1000 + $i);
             $total = 0;
             $items = [];
-            
+
             // Randomly pick 2 products
             $keys = array_rand($products, 2);
             foreach ($keys as $k) {
@@ -1250,12 +1258,13 @@ function seed_invoices() {
 /**
  * Seed Chart of Accounts
  */
-function seed_chart_of_accounts() {
+function seed_chart_of_accounts()
+{
     $conn = get_db_connection();
-    
+
     $result = mysqli_query($conn, "SELECT COUNT(*) as count FROM chart_of_accounts");
     $row = mysqli_fetch_assoc($result);
-    
+
     if ($row['count'] == 0) {
         // Define standard chart of accounts structure
         $accounts = [
@@ -1268,7 +1277,7 @@ function seed_chart_of_accounts() {
             ['code' => '1200', 'name' => 'الأصول الثابتة', 'type' => 'Asset', 'parent_id' => null],
             ['code' => '1210', 'name' => 'المعدات', 'type' => 'Asset', 'parent_id' => null],
             ['code' => '1220', 'name' => 'مخصص الإهلاك', 'type' => 'Asset', 'parent_id' => null],
-            
+
             // Liabilities
             ['code' => '2000', 'name' => 'الخصوم', 'type' => 'Liability', 'parent_id' => null],
             ['code' => '2100', 'name' => 'الخصوم المتداولة', 'type' => 'Liability', 'parent_id' => null],
@@ -1276,17 +1285,17 @@ function seed_chart_of_accounts() {
             ['code' => '2200', 'name' => 'ضريبة القيمة المضافة', 'type' => 'Liability', 'parent_id' => null],
             ['code' => '2210', 'name' => 'ضريبة القيمة المضافة - مخرجات', 'type' => 'Liability', 'parent_id' => null],
             ['code' => '2220', 'name' => 'ضريبة القيمة المضافة - مدخلات', 'type' => 'Liability', 'parent_id' => null],
-            
+
             // Equity
             ['code' => '3000', 'name' => 'حقوق الملكية', 'type' => 'Equity', 'parent_id' => null],
             ['code' => '3100', 'name' => 'رأس المال', 'type' => 'Equity', 'parent_id' => null],
             ['code' => '3200', 'name' => 'الأرباح المحتجزة', 'type' => 'Equity', 'parent_id' => null],
-            
+
             // Revenue
             ['code' => '4000', 'name' => 'الإيرادات', 'type' => 'Revenue', 'parent_id' => null],
             ['code' => '4100', 'name' => 'مبيعات', 'type' => 'Revenue', 'parent_id' => null],
             ['code' => '4200', 'name' => 'إيرادات أخرى', 'type' => 'Revenue', 'parent_id' => null],
-            
+
             // Expenses
             ['code' => '5000', 'name' => 'المصروفات', 'type' => 'Expense', 'parent_id' => null],
             ['code' => '5100', 'name' => 'تكلفة البضاعة المباعة', 'type' => 'Expense', 'parent_id' => null],
@@ -1296,18 +1305,18 @@ function seed_chart_of_accounts() {
             ['code' => '5230', 'name' => 'مرافق', 'type' => 'Expense', 'parent_id' => null],
             ['code' => '5300', 'name' => 'مصروف الإهلاك', 'type' => 'Expense', 'parent_id' => null],
         ];
-        
+
         // Insert accounts and build parent relationships
         $account_map = [];
         foreach ($accounts as $acc) {
             $code = mysqli_real_escape_string($conn, $acc['code']);
             $name = mysqli_real_escape_string($conn, $acc['name']);
             $type = mysqli_real_escape_string($conn, $acc['type']);
-            
+
             mysqli_query($conn, "INSERT INTO chart_of_accounts (account_code, account_name, account_type) VALUES ('$code', '$name', '$type')");
             $account_map[$code] = mysqli_insert_id($conn);
         }
-        
+
         // Update parent relationships
         $parent_relationships = [
             '1100' => '1000',
@@ -1333,7 +1342,7 @@ function seed_chart_of_accounts() {
             '5230' => '5200',
             '5300' => '5000',
         ];
-        
+
         foreach ($parent_relationships as $child_code => $parent_code) {
             if (isset($account_map[$child_code]) && isset($account_map[$parent_code])) {
                 $child_id = $account_map[$child_code];
@@ -1347,9 +1356,10 @@ function seed_chart_of_accounts() {
 /**
  * Seed document sequences
  */
-function seed_document_sequences() {
+function seed_document_sequences()
+{
     $conn = get_db_connection();
-    
+
     $sequences = [
         ['document_type' => 'INV', 'prefix' => 'INV', 'current_number' => 0, 'format' => '{PREFIX}-{NUMBER}'],
         ['document_type' => 'PUR', 'prefix' => 'PUR', 'current_number' => 0, 'format' => '{PREFIX}-{NUMBER}'],
@@ -1357,17 +1367,13 @@ function seed_document_sequences() {
         ['document_type' => 'REV', 'prefix' => 'REV', 'current_number' => 0, 'format' => '{PREFIX}-{NUMBER}'],
         ['document_type' => 'VOU', 'prefix' => 'VOU', 'current_number' => 0, 'format' => '{PREFIX}-{NUMBER}'],
     ];
-    
+
     foreach ($sequences as $seq) {
         $type = mysqli_real_escape_string($conn, $seq['document_type']);
         $prefix = mysqli_real_escape_string($conn, $seq['prefix']);
         $number = intval($seq['current_number']);
         $format = mysqli_real_escape_string($conn, $seq['format']);
-        
+
         mysqli_query($conn, "INSERT IGNORE INTO document_sequences (document_type, prefix, current_number, format) VALUES ('$type', '$prefix', $number, '$format')");
     }
 }
-
-?>
-
-

@@ -1,8 +1,8 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
-require_once __DIR__ . '/../LedgerService.php';
-require_once __DIR__ . '/../ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/LedgerService.php';
+require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
 
 class ReconciliationController extends Controller {
     private $ledgerService;

@@ -1,20 +1,23 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
-require_once __DIR__ . '/../LedgerService.php';
-require_once __DIR__ . '/../ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/LedgerService.php';
+require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
 
-class RevenuesController extends Controller {
+class RevenuesController extends Controller
+{
     private $ledgerService;
     private $coaMapping;
-    
-    public function __construct() {
+
+    public function __construct()
+    {
         parent::__construct();
         $this->ledgerService = new LedgerService();
         $this->coaMapping = new ChartOfAccountsMappingService();
     }
 
-    public function handle() {
+    public function handle()
+    {
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
@@ -32,7 +35,8 @@ class RevenuesController extends Controller {
         }
     }
 
-    private function getRevenues() {
+    private function getRevenues()
+    {
         $params = $this->getPaginationParams();
         $limit = $params['limit'];
         $offset = $params['offset'];
@@ -71,9 +75,10 @@ class RevenuesController extends Controller {
         $this->paginatedResponse($revenues, $total, $params['page'], $params['limit']);
     }
 
-    private function createRevenue() {
+    private function createRevenue()
+    {
         $data = $this->getJsonInput();
-        
+
         $source = $data['source'] ?? '';
         $amount = floatval($data['amount'] ?? 0);
         $revenue_date = $data['revenue_date'] ?? date('Y-m-d');
@@ -87,17 +92,17 @@ class RevenuesController extends Controller {
         }
 
         mysqli_begin_transaction($this->conn);
-        
+
         try {
             $stmt = mysqli_prepare($this->conn, "INSERT INTO revenues (source, amount, revenue_date, description, user_id) VALUES (?, ?, ?, ?, ?)");
             mysqli_stmt_bind_param($stmt, "sdssi", $source, $amount, $revenue_date, $description, $user_id);
             mysqli_stmt_execute($stmt);
             $id = mysqli_insert_id($this->conn);
             mysqli_stmt_close($stmt);
-            
+
             // Post to General Ledger - Double Entry
             $voucher_number = $this->ledgerService->getNextVoucherNumber('REV');
-            
+
             $accounts = $this->coaMapping->getStandardAccounts();
             $gl_entries = [
                 [
@@ -113,9 +118,9 @@ class RevenuesController extends Controller {
                     'description' => "$source - $description"
                 ]
             ];
-            
+
             $this->ledgerService->postTransaction($gl_entries, 'revenues', $id, $voucher_number, $revenue_date);
-            
+
             mysqli_commit($this->conn);
             log_operation('CREATE', 'revenues', $id, null, $data);
             $this->successResponse(['id' => $id, 'voucher_number' => $voucher_number]);
@@ -125,10 +130,11 @@ class RevenuesController extends Controller {
         }
     }
 
-    private function updateRevenue() {
+    private function updateRevenue()
+    {
         $data = $this->getJsonInput();
         $id = intval($data['id'] ?? 0);
-        
+
         $source = $data['source'] ?? '';
         $amount = floatval($data['amount'] ?? 0);
         $revenue_date = $data['revenue_date'] ?? date('Y-m-d H:i:s');
@@ -144,7 +150,7 @@ class RevenuesController extends Controller {
 
         $stmt = mysqli_prepare($this->conn, "UPDATE revenues SET source = ?, amount = ?, revenue_date = ?, description = ? WHERE id = ?");
         mysqli_stmt_bind_param($stmt, "sdssi", $source, $amount, $revenue_date, $description, $id);
-        
+
         if (mysqli_stmt_execute($stmt)) {
             log_operation('UPDATE', 'revenues', $id, $old_data, $data);
             $this->successResponse();
@@ -153,16 +159,17 @@ class RevenuesController extends Controller {
         }
     }
 
-    private function deleteRevenue() {
+    private function deleteRevenue()
+    {
         $id = intval($_GET['id'] ?? 0);
-        
+
         // Get old values for logging
         $old_res = mysqli_query($this->conn, "SELECT * FROM revenues WHERE id = $id");
         $old_data = mysqli_fetch_assoc($old_res);
 
         $stmt = mysqli_prepare($this->conn, "DELETE FROM revenues WHERE id = ?");
         mysqli_stmt_bind_param($stmt, "i", $id);
-        
+
         if (mysqli_stmt_execute($stmt)) {
             log_operation('DELETE', 'revenues', $id, $old_data);
             $this->successResponse();
