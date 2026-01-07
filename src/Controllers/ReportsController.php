@@ -1,10 +1,12 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/InventoryCostingService.php';
 require_once __DIR__ . '/../Services/DepreciationService.php';
 require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class ReportsController extends Controller
 {
@@ -27,6 +29,8 @@ class ReportsController extends Controller
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
+
+        PermissionService::requirePermission('reports', 'view');
 
         $method = $_SERVER['REQUEST_METHOD'];
         if ($method !== 'GET') {

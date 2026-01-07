@@ -3,6 +3,7 @@
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class JournalVouchersController extends Controller
 {
@@ -22,15 +23,19 @@ class JournalVouchersController extends Controller
             $this->errorResponse('Unauthorized', 401);
         }
 
+        PermissionService::requirePermission('journal_vouchers', 'view');
+
         $method = $_SERVER['REQUEST_METHOD'];
 
         if ($method === 'GET') {
             $this->getJournalVouchers();
         } elseif ($method === 'POST') {
+            PermissionService::requirePermission('journal_vouchers', 'create');
             $this->createJournalVoucher();
         } elseif ($method === 'PUT') {
             $this->updateJournalVoucher();
         } elseif ($method === 'DELETE') {
+            PermissionService::requirePermission('journal_vouchers', 'delete');
             $this->deleteJournalVoucher();
         }
     }

@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class DashboardController extends Controller {
 
@@ -8,6 +9,8 @@ class DashboardController extends Controller {
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
+
+        PermissionService::requirePermission('dashboard', 'view');
         
         $this->requireMethod('GET');
         

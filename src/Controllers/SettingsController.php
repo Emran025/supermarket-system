@@ -9,15 +9,15 @@ class SettingsController extends Controller {
             $this->errorResponse('Unauthorized', 401);
         }
 
+        require_once __DIR__ . '/../Services/PermissionService.php';
+
         $method = $_SERVER['REQUEST_METHOD'];
 
         if ($method === 'GET') {
+            PermissionService::requirePermission('settings', 'view');
             $this->getSettings();
         } elseif ($method === 'POST') {
-            // Only admin can update settings
-            if ($_SESSION['role'] !== 'admin') {
-                $this->errorResponse('Forbidden', 403);
-            }
+            PermissionService::requirePermission('settings', 'edit');
             $this->updateSettings();
         }
     }

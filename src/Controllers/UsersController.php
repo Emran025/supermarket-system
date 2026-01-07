@@ -9,27 +9,31 @@ class UsersController extends Controller {
             $this->errorResponse('Unauthorized', 401);
         }
 
+        require_once __DIR__ . '/../Services/PermissionService.php';
+
         $action = $_GET['action'] ?? '';
         $method = $_SERVER['REQUEST_METHOD'];
 
         if ($action === 'users') {
-            // Only admin can manage users
-            if (!$this->isAdmin()) {
-                $this->errorResponse('Forbidden', 403);
-            }
-
+            // Permission checks for user management
             if ($method === 'GET') {
+                PermissionService::requirePermission('users', 'view');
                 $this->getUsers();
             } elseif ($method === 'POST') {
+                PermissionService::requirePermission('users', 'create');
                 $this->createUser();
             } elseif ($method === 'PUT') {
+                PermissionService::requirePermission('users', 'edit');
                 $this->updateUser(); // For deactivation/role change
             }
         } elseif ($action === 'change_password') {
+            // Any logged-in user can change their own password
             $this->changePassword();
         } elseif ($action === 'my_sessions') {
+            // Any logged-in user can view their sessions
             $this->getMySessions();
         } elseif ($action === 'manager_list') {
+            // Any logged-in user can view manager list (for dropdowns)
             $this->getManagerList();
         }
     }
@@ -63,8 +67,9 @@ class UsersController extends Controller {
         $countResult = mysqli_query($this->conn, "SELECT COUNT(*) as total FROM users");
         $total = mysqli_fetch_assoc($countResult)['total'];
 
-        $sql = "SELECT u.id, u.username, u.role, u.is_active, u.created_at, u.manager_id, m.username as manager_name, c.username as creator_name
+        $sql = "SELECT u.id, u.username, u.role_id, r.role_key, r.role_name_ar, r.role_name_en, u.is_active, u.created_at, u.manager_id, m.username as manager_name, c.username as creator_name
                 FROM users u 
+                LEFT JOIN roles r ON u.role_id = r.id
                 LEFT JOIN users m ON u.manager_id = m.id 
                 LEFT JOIN users c ON u.created_by = c.id
                 ORDER BY u.created_at DESC
@@ -82,8 +87,15 @@ class UsersController extends Controller {
         $data = $this->getJsonInput();
         $username = mysqli_real_escape_string($this->conn, $data['username'] ?? '');
         $password = $data['password'] ?? '';
-        $role = mysqli_real_escape_string($this->conn, $data['role'] ?? 'sales');
+        $role_id = isset($data['role_id']) && !empty($data['role_id']) ? intval($data['role_id']) : null;
         $manager_id = isset($data['manager_id']) && !empty($data['manager_id']) ? intval($data['manager_id']) : null;
+        
+        // Fallback to cashier role if no role_id provided
+        if (!$role_id) {
+            $role_result = mysqli_query($this->conn, "SELECT id FROM roles WHERE role_key = 'cashier' LIMIT 1");
+            $role_row = mysqli_fetch_assoc($role_result);
+            $role_id = $role_row['id'] ?? 4;
+        }
 
         if (empty($username) || empty($password)) {
             $this->errorResponse('Username and password are required', 400);
@@ -98,14 +110,14 @@ class UsersController extends Controller {
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         $current_user_id = $_SESSION['user_id'];
         
-        $sql = "INSERT INTO users (username, password, role, is_active, manager_id, created_by) VALUES (?, ?, ?, 1, ?, ?)";
+        $sql = "INSERT INTO users (username, password, role_id, is_active, manager_id, created_by) VALUES (?, ?, ?, 1, ?, ?)";
         $stmt = mysqli_prepare($this->conn, $sql);
-        mysqli_stmt_bind_param($stmt, "sssi i", $username, $hashed_password, $role, $manager_id, $current_user_id);
+        mysqli_stmt_bind_param($stmt, "ssiii", $username, $hashed_password, $role_id, $manager_id, $current_user_id);
 
         
         if (mysqli_stmt_execute($stmt)) {
             $new_user_id = mysqli_insert_id($this->conn);
-            log_operation('CREATE', 'users', $new_user_id, null, ['username' => $username, 'role' => $role]);
+            log_operation('CREATE', 'users', $new_user_id, null, ['username' => $username, 'role_id' => $role_id]);
             $this->successResponse(['id' => $new_user_id]);
         } else {
             $this->errorResponse(mysqli_error($this->conn));
@@ -116,7 +128,7 @@ class UsersController extends Controller {
     private function updateUser() {
         $data = $this->getJsonInput();
         $id = intval($data['id'] ?? 0);
-        $role = mysqli_real_escape_string($this->conn, $data['role'] ?? '');
+        $role_id = isset($data['role_id']) && !empty($data['role_id']) ? intval($data['role_id']) : null;
         $is_active = isset($data['is_active']) ? intval($data['is_active']) : null;
         $manager_id = isset($data['manager_id']) ? ($data['manager_id'] ? intval($data['manager_id']) : null) : -1; // -1 as sentinel for "no change" if key not present, but for now assuming frontend sends full object or specific keys.
         // Actually safe way: check if key exists.
@@ -134,10 +146,10 @@ class UsersController extends Controller {
         $types = "";
         $params = [];
 
-        if ($role) {
-            $updates[] = "role = ?";
-            $types .= "s";
-            $params[] = $role;
+        if ($role_id !== null) {
+            $updates[] = "role_id = ?";
+            $types .= "i";
+            $params[] = $role_id;
         }
         if ($is_active !== null) {
             $updates[] = "is_active = ?";

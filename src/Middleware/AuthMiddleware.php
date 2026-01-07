@@ -16,10 +16,17 @@ class AuthMiddleware {
 
     public function requireRole($role) {
         $this->handle();
-        if ($_SESSION['role'] !== $role && $_SESSION['role'] !== 'admin') {
+        // Check using the new role_key session variable
+        if (($_SESSION['role_key'] ?? '') !== $role && ($_SESSION['role_key'] ?? '') !== 'admin') {
              http_response_code(403);
-             echo json_encode(['error' => 'Forbidden']);
+             echo json_encode(['success' => false, 'error' => 'Forbidden']);
              exit;
         }
+    }
+
+    public function requirePermission($module, $action = 'view') {
+        $this->handle();
+        require_once __DIR__ . '/../Services/PermissionService.php';
+        \PermissionService::requirePermission($module, $action);
     }
 }

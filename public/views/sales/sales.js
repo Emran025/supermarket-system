@@ -590,7 +590,7 @@ function renderInvoiceHistory() {
                           inv.id
                         })" title="عرض">${getIcon("eye")}</button>
                         ${
-                          canDelete
+                          canDelete && canAccess("sales", "delete")
                             ? `<button class="icon-btn delete" onclick="deleteInvoice(${
                                 inv.id
                               })" title="حذف">${getIcon("trash")}</button>`

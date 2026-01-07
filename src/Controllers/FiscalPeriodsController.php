@@ -22,9 +22,12 @@ class FiscalPeriodsController extends Controller
             $this->errorResponse('Unauthorized', 401);
         }
 
+        require_once __DIR__ . '/../Services/PermissionService.php';
+
         $method = $_SERVER['REQUEST_METHOD'];
 
         if ($method === 'GET') {
+            PermissionService::requirePermission('fiscal_periods', 'view');
             $action = $_GET['action'] ?? '';
             if ($action === 'lock') {
                 $this->lockPeriod();
@@ -34,8 +37,10 @@ class FiscalPeriodsController extends Controller
                 $this->getPeriods();
             }
         } elseif ($method === 'POST') {
+            PermissionService::requirePermission('fiscal_periods', 'create');
             $this->createPeriod();
         } elseif ($method === 'PUT') {
+            PermissionService::requirePermission('fiscal_periods', 'edit');
             $action = $_GET['action'] ?? 'close';
             if ($action === 'close') {
                 $this->closePeriod();
@@ -318,14 +323,7 @@ class FiscalPeriodsController extends Controller
             $this->errorResponse('Invalid period ID');
         }
 
-        // Check user permissions (only admin/manager can unlock)
-        $user_id = $_SESSION['user_id'];
-        $user_result = mysqli_query($this->conn, "SELECT role FROM users WHERE id = $user_id");
-        $user = mysqli_fetch_assoc($user_result);
-
-        if (!in_array($user['role'] ?? '', ['admin', 'manager'])) {
-            $this->errorResponse('Only managers and admins can unlock periods', 403);
-        }
+        // Permission already checked in handle() via PermissionService
 
         // Check if period exists
         $result = mysqli_query($this->conn, "SELECT * FROM fiscal_periods WHERE id = $id");

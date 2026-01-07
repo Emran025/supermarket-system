@@ -3,6 +3,7 @@
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class ArController extends Controller
 {
@@ -22,6 +23,8 @@ class ArController extends Controller
             $this->errorResponse('Unauthorized', 401);
         }
 
+        PermissionService::requirePermission('ar_customers', 'view');
+
         $action = $_GET['action'] ?? 'ar_customers';
         $method = $_SERVER['REQUEST_METHOD'];
 
@@ -29,10 +32,13 @@ class ArController extends Controller
             if ($method === 'GET') {
                 $this->getCustomers();
             } elseif ($method === 'POST') {
+                PermissionService::requirePermission('ar_customers', 'create');
                 $this->createCustomer();
             } elseif ($method === 'PUT') {
+                PermissionService::requirePermission('ar_customers', 'edit');
                 $this->updateCustomer();
             } elseif ($method === 'DELETE') {
+                PermissionService::requirePermission('ar_customers', 'delete');
                 $this->deleteCustomer();
             }
         } elseif ($action === 'ar_ledger') {

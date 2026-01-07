@@ -8,6 +8,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   const isAuthenticated = await checkAuth();
   if (!isAuthenticated) return;
 
+  // Setup UI permissions
+  if (!canAccess("expenses", "create")) {
+    const addBtn = document.querySelector('button[onclick="openAddDialog()"]');
+    if (addBtn) addBtn.style.display = "none";
+  }
+
   // Setup Search
   const searchInput = document.getElementById("params-search");
   if (searchInput) {
@@ -81,12 +87,20 @@ function renderExpenses() {
             }</span></td>
             <td>
                 <div class="action-buttons">
-                    <button class="icon-btn edit" onclick="editExpense(${
-                      e.id
-                    })">${getIcon("edit")}</button>
-                    <button class="icon-btn delete" onclick="deleteExpense(${
-                      e.id
-                    })">${getIcon("trash")}</button>
+                    ${
+                      canAccess("expenses", "edit")
+                        ? `<button class="icon-btn edit" onclick="editExpense(${
+                            e.id
+                          })">${getIcon("edit")}</button>`
+                        : ""
+                    }
+                    ${
+                      canAccess("expenses", "delete")
+                        ? `<button class="icon-btn delete" onclick="deleteExpense(${
+                            e.id
+                          })">${getIcon("trash")}</button>`
+                        : ""
+                    }
                 </div>
             </td>
         </tr>

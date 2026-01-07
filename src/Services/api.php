@@ -57,6 +57,7 @@ try {
     require_once __DIR__ . '/../Controllers/ReportsController.php';
     require_once __DIR__ . '/../Controllers/ApController.php';
     require_once __DIR__ . '/../Controllers/FiscalPeriodsController.php';
+    require_once __DIR__ . '/../Controllers/RolesPermissionsController.php';
 } catch (Exception $e) {
     http_response_code(500);
     header('Content-Type: application/json');
@@ -188,6 +189,13 @@ try {
     // Batch Processing
     require_once __DIR__ . '/../Controllers/BatchProcessingController.php';
     $router->register('batch', 'BatchProcessingController');
+
+    // Roles & Permissions
+    $router->register('roles', 'RolesPermissionsController');
+    $router->register('modules', 'RolesPermissionsController');
+    $router->register('role_permissions', 'RolesPermissionsController');
+    $router->register('create_role', 'RolesPermissionsController');
+    $router->register('update_permissions', 'RolesPermissionsController');
 
     $router->dispatch();
 } catch (Exception $e) {

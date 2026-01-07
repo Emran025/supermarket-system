@@ -181,6 +181,35 @@ function create_session($user_id)
 {
     $conn = get_db_connection();
 
+    // Get user role for RBAC (now using role_id and joining roles table)
+    $stmt = mysqli_prepare($conn, "
+        SELECT u.role_id, r.role_key, r.role_name_ar 
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+        WHERE u.id = ?
+    ");
+    mysqli_stmt_bind_param($stmt, "i", $user_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $user = mysqli_fetch_assoc($result);
+    mysqli_stmt_close($stmt);
+    
+    // Fallback to cashier if no role assigned
+    if (!$user || !$user['role_id']) {
+        // Get cashier role as default
+        $default_stmt = mysqli_prepare($conn, "SELECT id, role_key FROM roles WHERE role_key = 'cashier' LIMIT 1");
+        mysqli_stmt_execute($default_stmt);
+        $default_result = mysqli_stmt_get_result($default_stmt);
+        $default_role = mysqli_fetch_assoc($default_result);
+        mysqli_stmt_close($default_stmt);
+        
+        $role_id = $default_role['id'] ?? 4; // Fallback to ID 4 (cashier)
+        $role_key = $default_role['role_key'] ?? 'cashier';
+    } else {
+        $role_id = $user['role_id'];
+        $role_key = $user['role_key'];
+    }
+
     // Create new session
     $session_token = bin2hex(random_bytes(32));
     $expires_at = date('Y-m-d H:i:s', time() + SESSION_LIFETIME);
@@ -197,6 +226,12 @@ function create_session($user_id)
     session_regenerate_id(true); // Prevent session fixation
     $_SESSION['user_id'] = $user_id;
     $_SESSION['session_token'] = $session_token;
+    $_SESSION['role_id'] = $role_id; // Store role ID
+    $_SESSION['role_key'] = $role_key; // Store role key for backward compatibility
+
+    // Load permissions into session for RBAC (using role_id)
+    require_once __DIR__ . '/PermissionService.php';
+    $_SESSION['permissions'] = PermissionService::loadPermissions($role_id);
 
     return $session_token;
 }

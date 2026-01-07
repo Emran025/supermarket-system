@@ -3,6 +3,7 @@
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 /**
  * BatchProcessingController
@@ -26,6 +27,8 @@ class BatchProcessingController extends Controller
             $this->errorResponse('Unauthorized', 401);
         }
 
+        PermissionService::requirePermission('batch_processing', 'view');
+
         $method = $_SERVER['REQUEST_METHOD'];
         $action = $_GET['action'] ?? '';
 
@@ -36,6 +39,7 @@ class BatchProcessingController extends Controller
                 $this->getBatches();
             }
         } elseif ($method === 'POST') {
+            PermissionService::requirePermission('batch_processing', 'create');
             if ($action === 'journal_entries') {
                 $this->processBatchJournalEntries();
             } elseif ($action === 'expenses') {

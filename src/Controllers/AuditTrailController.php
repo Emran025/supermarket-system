@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 /**
  * AuditTrailController
@@ -12,6 +13,8 @@ class AuditTrailController extends Controller {
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
+
+        PermissionService::requirePermission('audit_trail', 'view');
         
         $method = $_SERVER['REQUEST_METHOD'];
         

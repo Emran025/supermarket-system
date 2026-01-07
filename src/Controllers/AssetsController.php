@@ -3,6 +3,7 @@
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/DepreciationService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class AssetsController extends Controller
 {
@@ -22,11 +23,14 @@ class AssetsController extends Controller
             $this->errorResponse('Unauthorized', 401);
         }
 
+        PermissionService::requirePermission('assets', 'view');
+
         $method = $_SERVER['REQUEST_METHOD'];
         $action = $_GET['action'] ?? '';
 
         // ALM-003: Depreciation automation endpoint
         if ($action === 'calculate_depreciation' && $method === 'POST') {
+            PermissionService::requirePermission('assets', 'edit'); // Or create/edit depreciation
             $this->calculateDepreciation();
             return;
         }
@@ -34,10 +38,13 @@ class AssetsController extends Controller
         if ($method === 'GET') {
             $this->getAssets();
         } elseif ($method === 'POST') {
+            PermissionService::requirePermission('assets', 'create');
             $this->createAsset();
         } elseif ($method === 'PUT') {
+            PermissionService::requirePermission('assets', 'edit');
             $this->updateAsset();
         } elseif ($method === 'DELETE') {
+            PermissionService::requirePermission('assets', 'delete');
             $this->deleteAsset();
         }
     }

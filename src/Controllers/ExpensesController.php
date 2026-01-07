@@ -3,6 +3,7 @@
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class ExpensesController extends Controller
 {
@@ -21,6 +22,8 @@ class ExpensesController extends Controller
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
+
+        PermissionService::requirePermission('expenses', 'view');
 
         $method = $_SERVER['REQUEST_METHOD'];
 
@@ -77,6 +80,7 @@ class ExpensesController extends Controller
 
     private function createExpense()
     {
+        PermissionService::requirePermission('expenses', 'create');
         $data = $this->getJsonInput();
 
         $category = $data['category'] ?? '';
@@ -145,6 +149,7 @@ class ExpensesController extends Controller
 
     private function updateExpense()
     {
+        PermissionService::requirePermission('expenses', 'edit');
         $data = $this->getJsonInput();
         $id = intval($data['id'] ?? 0);
 
@@ -187,6 +192,7 @@ class ExpensesController extends Controller
 
     private function deleteExpense()
     {
+        PermissionService::requirePermission('expenses', 'delete');
         $id = intval($_GET['id'] ?? 0);
 
         // Get old values for logging

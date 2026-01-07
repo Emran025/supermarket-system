@@ -3,6 +3,7 @@
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class ReconciliationController extends Controller {
     private $ledgerService;
@@ -19,13 +20,20 @@ class ReconciliationController extends Controller {
             $this->errorResponse('Unauthorized', 401);
         }
         
+        PermissionService::requirePermission('reconciliation', 'view');
+        
         $method = $_SERVER['REQUEST_METHOD'];
         
         if ($method === 'GET') {
             $this->getReconciliations();
         } elseif ($method === 'POST') {
+            PermissionService::requirePermission('reconciliation', 'create');
+            $this->createReconciliation();
+        } elseif ($method === 'POST') {
+            PermissionService::requirePermission('reconciliation', 'create');
             $this->createReconciliation();
         } elseif ($method === 'PUT') {
+            PermissionService::requirePermission('reconciliation', 'edit');
             $this->updateReconciliation();
         }
     }

@@ -3,6 +3,7 @@
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class RevenuesController extends Controller
 {
@@ -22,15 +23,20 @@ class RevenuesController extends Controller
             $this->errorResponse('Unauthorized', 401);
         }
 
+        PermissionService::requirePermission('revenues', 'view');
+
         $method = $_SERVER['REQUEST_METHOD'];
 
         if ($method === 'GET') {
             $this->getRevenues();
         } elseif ($method === 'POST') {
+            PermissionService::requirePermission('revenues', 'create');
             $this->createRevenue();
         } elseif ($method === 'PUT') {
+            PermissionService::requirePermission('revenues', 'edit');
             $this->updateRevenue();
         } elseif ($method === 'DELETE') {
+            PermissionService::requirePermission('revenues', 'delete');
             $this->deleteRevenue();
         }
     }

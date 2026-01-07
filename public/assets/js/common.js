@@ -185,6 +185,11 @@ async function checkAuth() {
   const result = await fetchAPI("check");
   if (result.success) {
     const user = result.user;
+
+    // Store permissions globally for access checks
+    window.userPermissions = user.permissions || {};
+    window.userRole = user.role;
+
     setupSidebar(user);
     updateCurrentDate();
     setInterval(updateCurrentDate, 1000);
@@ -195,11 +200,8 @@ async function checkAuth() {
 
     const roleBadge = document.getElementById("userRoleBadge");
     if (roleBadge) {
-      const is_admin = user.role === "admin";
-      roleBadge.textContent = is_admin ? "مدير النظام" : "مبيعات";
-      roleBadge.className = `badge ${
-        is_admin ? "badge-primary" : "badge-secondary"
-      }`;
+      roleBadge.textContent = getRoleBadgeText(user.role);
+      roleBadge.className = `badge ${getRoleBadgeClass(user.role)}`;
       roleBadge.style.display = "inline-block";
     }
 
@@ -210,84 +212,203 @@ async function checkAuth() {
   }
 }
 
+/**
+ * Get role badge text in Arabic
+ */
+function getRoleBadgeText(role) {
+  const roleNames = {
+    admin: "مدير النظام",
+    manager: "مدير",
+    accountant: "محاسب",
+    cashier: "كاشير",
+  };
+  return roleNames[role] || "مستخدم";
+}
+
+/**
+ * Get role badge CSS class
+ */
+function getRoleBadgeClass(role) {
+  const roleClasses = {
+    admin: "badge-primary",
+    manager: "badge-success",
+    accountant: "badge-info",
+    cashier: "badge-secondary",
+  };
+  return roleClasses[role] || "badge-secondary";
+}
+
+/**
+ * Check if user can access a module with specific action
+ * @param {string} module - Module name (e.g., 'sales', 'users')
+ * @param {string} action - Action type (view, create, edit, delete)
+ * @returns {boolean}
+ */
+function canAccess(module, action = "view") {
+  if (!window.userPermissions) return false;
+
+  // Admin wildcard check
+  if (window.userPermissions["*"]) {
+    return window.userPermissions["*"][action] || false;
+  }
+
+  // Module-specific check
+  if (window.userPermissions[module]) {
+    return window.userPermissions[module][action] || false;
+  }
+
+  // Default deny
+  return false;
+}
+
 function setupSidebar(user) {
   const nav = document.querySelector(".sidebar-nav");
   if (!nav) return;
 
-  const commonLinks = [
-    { href: "../system/dashboard.html", icon: "home", text: "لوحة التحكم" },
-    { href: "../sales/sales.html", icon: "cart", text: "المبيعات" },
-    { href: "../sales/deferred_sales.html", icon: "cart", text: "مبيعات آجلة" },
+  // All possible links with module mappings for RBAC
+  const allLinks = [
+    {
+      href: "../system/dashboard.html",
+      icon: "home",
+      text: "لوحة التحكم",
+      module: null, // Dashboard always visible
+    },
+    {
+      href: "../sales/sales.html",
+      icon: "cart",
+      text: "المبيعات",
+      module: "sales",
+    },
+    {
+      href: "../sales/deferred_sales.html",
+      icon: "cart",
+      text: "مبيعات آجلة",
+      module: "sales",
+    },
     {
       href: "../people/ar_customers.html",
       icon: "users",
       text: "العملاء والديون",
+      module: "ar_customers",
     },
-    { href: "../inventory/products.html", icon: "box", text: "المنتجات" },
+    {
+      href: "../inventory/products.html",
+      icon: "box",
+      text: "المنتجات",
+      module: "products",
+    },
     {
       href: "../purchases/purchases.html",
       icon: "download",
       text: "المشتريات",
+      module: "purchases",
     },
-    { href: "../purchases/expenses.html", icon: "dollar", text: "المصروفات" },
+    {
+      href: "../purchases/expenses.html",
+      icon: "dollar",
+      text: "المصروفات",
+      module: "expenses",
+    },
     {
       href: "../sales/revenues.html",
       icon: "plus",
       text: "الإيرادات الإضافية",
+      module: "revenues",
     },
-    { href: "../finance/assets.html", icon: "building", text: "الأصول" },
+    {
+      href: "../finance/assets.html",
+      icon: "building",
+      text: "الأصول",
+      module: "assets",
+    },
     {
       href: "../finance/general_ledger.html",
       icon: "dollar",
       text: "دفتر الأستاذ العام",
+      module: "general_ledger",
     },
     {
       href: "../finance/journal_vouchers.html",
       icon: "edit",
       text: "سندات القيد",
+      module: "journal_vouchers",
     },
     {
       href: "../finance/reconciliation.html",
       icon: "check",
       text: "التسوية البنكية",
+      module: "reconciliation",
     },
     {
       href: "../finance/accrual_accounting.html",
       icon: "dollar",
       text: "المحاسبة الاستحقاقية",
+      module: "accrual_accounting",
     },
     {
       href: "../system/recurring_transactions.html",
       icon: "check",
       text: "المعاملات المتكررة",
+      module: "recurring_transactions",
     },
     {
       href: "../finance/chart_of_accounts.html",
       icon: "box",
       text: "دليل الحسابات",
+      module: "chart_of_accounts",
     },
     {
       href: "../system/reports.html",
       icon: "eye",
       text: "الميزانية والتقارير",
+      module: "reports",
     },
-  ];
-
-  const adminLinks = [
-    { href: "../people/users.html", icon: "users", text: "إدارة المستخدمين" },
-    { href: "../system/settings.html", icon: "settings", text: "الإعدادات" },
-    { href: "../system/audit_trail.html", icon: "eye", text: "سجل التدقيق" },
+    {
+      href: "../people/users.html",
+      icon: "users",
+      text: "إدارة المستخدمين",
+      module: "users",
+    },
+    {
+      href: "../system/settings.html",
+      icon: "settings",
+      text: "الإعدادات",
+      module: "settings",
+    },
+    {
+      href: "../system/audit_trail.html",
+      icon: "eye",
+      text: "سجل التدقيق",
+      module: "audit_trail",
+    },
     {
       href: "../finance/fiscal_periods.html",
       icon: "dollar",
       text: "الفترات المالية",
+      module: "fiscal_periods",
+    },
+    {
+      href: "../system/batch_processing.html",
+      icon: "check",
+      text: "المعالجة الدفعية",
+      module: "batch_processing",
+    },
+    {
+      href: "../system/roles.html",
+      icon: "lock",
+      text: "الأدوار والصلاحيات",
+      module: "roles_permissions",
     },
   ];
 
-  let links = [...commonLinks];
-  if (user.role === "admin") {
-    links = [...links, ...adminLinks];
-  }
+  // Filter links based on permissions
+  const links = allLinks.filter((link) => {
+    // Dashboard always visible
+    if (!link.module) return true;
+
+    // Check if user has view permission for this module
+    return canAccess(link.module, "view");
+  });
 
   const currentPath =
     window.location.pathname.split("/").pop() || "dashboard.html";
@@ -297,7 +418,7 @@ function setupSidebar(user) {
       .map(
         (link) => `
         <a href="${link.href}" class="${
-          link.href === currentPath ? "active" : ""
+          link.href.includes(currentPath) ? "active" : ""
         }">
             ${getIcon(link.icon)} <span>${link.text}</span>
         </a>

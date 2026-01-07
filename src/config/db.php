@@ -116,6 +116,81 @@ function init_database()
         mysqli_query($conn, "ALTER TABLE sessions ADD COLUMN user_agent VARCHAR(255)");
     }
 
+    // RBAC: Roles table
+    $roles_sql = "CREATE TABLE IF NOT EXISTS roles (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        role_key VARCHAR(50) UNIQUE NOT NULL,
+        role_name_ar VARCHAR(100) NOT NULL,
+        role_name_en VARCHAR(100) NOT NULL,
+        description TEXT,
+        is_system TINYINT(1) DEFAULT 0,
+        is_active TINYINT(1) DEFAULT 1,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_role_key (role_key),
+        INDEX idx_is_active (is_active)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+
+    if (!mysqli_query($conn, $roles_sql)) {
+        error_log("Failed to create roles table: " . mysqli_error($conn));
+        throw new Exception("Failed to create roles table: " . mysqli_error($conn));
+    }
+
+    // RBAC: Modules table
+    $modules_sql = "CREATE TABLE IF NOT EXISTS modules (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        module_key VARCHAR(50) UNIQUE NOT NULL,
+        module_name_ar VARCHAR(100) NOT NULL,
+        module_name_en VARCHAR(100) NOT NULL,
+        category VARCHAR(50),
+        icon VARCHAR(50),
+        sort_order INT DEFAULT 0,
+        is_active TINYINT(1) DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_module_key (module_key),
+        INDEX idx_category (category),
+        INDEX idx_is_active (is_active)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+
+    if (!mysqli_query($conn, $modules_sql)) {
+        error_log("Failed to create modules table: " . mysqli_error($conn));
+        throw new Exception("Failed to create modules table: " . mysqli_error($conn));
+    }
+
+    // RBAC: Role Permissions table
+    $permissions_sql = "CREATE TABLE IF NOT EXISTS role_permissions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        role_id INT NOT NULL,
+        module_id INT NOT NULL,
+        can_view TINYINT(1) DEFAULT 0,
+        can_create TINYINT(1) DEFAULT 0,
+        can_edit TINYINT(1) DEFAULT 0,
+        can_delete TINYINT(1) DEFAULT 0,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+        FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        UNIQUE KEY unique_role_module (role_id, module_id),
+        INDEX idx_role_id (role_id),
+        INDEX idx_module_id (module_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+
+    if (!mysqli_query($conn, $permissions_sql)) {
+        error_log("Failed to create role_permissions table: " . mysqli_error($conn));
+        throw new Exception("Failed to create role_permissions table: " . mysqli_error($conn));
+    }
+
+    // RBAC: Migrate users table to use role_id
+    $check_user_role_id = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'role_id'");
+    if ($check_user_role_id && $check_user_role_id instanceof mysqli_result && mysqli_num_rows($check_user_role_id) == 0) {
+        mysqli_query($conn, "ALTER TABLE users ADD COLUMN role_id INT NULL AFTER role");
+        mysqli_query($conn, "ALTER TABLE users ADD CONSTRAINT fk_user_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL");
+    }
+
     // Login attempts table (for throttling)
     $login_attempts_sql = "CREATE TABLE IF NOT EXISTS login_attempts (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -999,6 +1074,14 @@ function init_database()
     } catch (Exception $e) {
         error_log("Failed to seed invoices: " . $e->getMessage());
     }
+
+    // Seed RBAC Roles, Modules and Permissions
+    try {
+        seed_rbac();
+    } catch (Exception $e) {
+        error_log("Failed to seed RBAC: " . $e->getMessage());
+    }
+
     // Seed Chart of Accounts
     try {
         seed_chart_of_accounts();
@@ -1039,9 +1122,18 @@ function seed_default_user()
     if ($row['count'] == 0) {
         $username = 'admin';
         $password = password_hash('admin123', PASSWORD_DEFAULT);
-        $stmt = mysqli_prepare($conn, "INSERT INTO users (username, password) VALUES (?, ?)");
+        
+        // Try to get admin role ID
+        $role_id = null;
+        $role_res = mysqli_query($conn, "SELECT id FROM roles WHERE role_key = 'admin'");
+        if ($role_res && mysqli_num_rows($role_res) > 0) {
+            $role_row = mysqli_fetch_assoc($role_res);
+            $role_id = $role_row['id'];
+        }
+
+        $stmt = mysqli_prepare($conn, "INSERT INTO users (username, password, role, role_id) VALUES (?, ?, 'admin', ?)");
         if ($stmt) {
-            mysqli_stmt_bind_param($stmt, "ss", $username, $password);
+            mysqli_stmt_bind_param($stmt, "ssi", $username, $password, $role_id);
             if (!mysqli_stmt_execute($stmt)) {
                 error_log("Failed to create default user: " . mysqli_error($conn));
             }
@@ -1376,4 +1468,109 @@ function seed_document_sequences()
 
         mysqli_query($conn, "INSERT IGNORE INTO document_sequences (document_type, prefix, current_number, format) VALUES ('$type', '$prefix', $number, '$format')");
     }
+}
+
+/**
+ * Seed RBAC Data (Roles, Modules, and Default Permissions)
+ */
+function seed_rbac()
+{
+    $conn = get_db_connection();
+
+    // 1. Seed Roles
+    $roles = [
+        ['admin', 'مدير النظام', 'System Administrator', 'Full system access with all permissions', 1],
+        ['manager', 'مدير', 'Manager', 'Business manager with most operational permissions', 1],
+        ['accountant', 'محاسب', 'Accountant', 'Financial operations and reporting', 1],
+        ['cashier', 'كاشير', 'Cashier', 'Point-of-sale operations only', 1]
+    ];
+
+    foreach ($roles as $role) {
+        $stmt = mysqli_prepare($conn, "INSERT INTO roles (role_key, role_name_ar, role_name_en, description, is_system) 
+                                     VALUES (?, ?, ?, ?, ?) 
+                                     ON DUPLICATE KEY UPDATE 
+                                     role_name_ar = VALUES(role_name_ar), 
+                                     role_name_en = VALUES(role_name_en), 
+                                     description = VALUES(description)");
+        mysqli_stmt_bind_param($stmt, "ssssi", $role[0], $role[1], $role[2], $role[3], $role[4]);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+    }
+
+    // 2. Seed Modules
+    $modules = [
+        ['dashboard', 'لوحة التحكم', 'Dashboard', 'system', 'home', 1],
+        ['sales', 'المبيعات', 'Sales', 'sales', 'cart', 10],
+        ['revenues', 'الإيرادات الإضافية', 'Additional Revenues', 'sales', 'plus', 11],
+        ['products', 'المنتجات', 'Products', 'inventory', 'box', 20],
+        ['purchases', 'المشتريات', 'Purchases', 'purchases', 'download', 30],
+        ['expenses', 'المصروفات', 'Expenses', 'purchases', 'dollar', 31],
+        ['ar_customers', 'العملاء والديون', 'AR Customers', 'people', 'users', 40],
+        ['ap_suppliers', 'الموردين', 'AP Suppliers', 'people', 'users', 41],
+        ['chart_of_accounts', 'دليل الحسابات', 'Chart of Accounts', 'finance', 'box', 50],
+        ['general_ledger', 'دفتر الأستاذ العام', 'General Ledger', 'finance', 'dollar', 51],
+        ['journal_vouchers', 'سندات القيد', 'Journal Vouchers', 'finance', 'edit', 52],
+        ['fiscal_periods', 'الفترات المالية', 'Fiscal Periods', 'finance', 'dollar', 53],
+        ['accrual_accounting', 'المحاسبة الاستحقاقية', 'Accrual Accounting', 'finance', 'dollar', 54],
+        ['reconciliation', 'التسوية البنكية', 'Bank Reconciliation', 'finance', 'check', 55],
+        ['assets', 'الأصول', 'Fixed Assets', 'finance', 'building', 56],
+        ['reports', 'الميزانية والتقارير', 'Reports & Balance Sheet', 'reports', 'eye', 60],
+        ['audit_trail', 'سجل التدقيق', 'Audit Trail', 'system', 'eye', 70],
+        ['recurring_transactions', 'المعاملات المتكررة', 'Recurring Transactions', 'system', 'check', 71],
+        ['batch_processing', 'المعالجة الدفعية', 'Batch Processing', 'system', 'check', 72],
+        ['users', 'إدارة المستخدمين', 'User Management', 'system', 'users', 73],
+        ['settings', 'الإعدادات', 'Settings', 'system', 'settings', 74],
+        ['roles_permissions', 'الأدوار والصلاحيات', 'Roles & Permissions', 'system', 'lock', 75]
+    ];
+
+    foreach ($modules as $mod) {
+        $stmt = mysqli_prepare($conn, "INSERT INTO modules (module_key, module_name_ar, module_name_en, category, icon, sort_order) 
+                                     VALUES (?, ?, ?, ?, ?, ?) 
+                                     ON DUPLICATE KEY UPDATE 
+                                     module_name_ar = VALUES(module_name_ar), 
+                                     module_name_en = VALUES(module_name_en), 
+                                     category = VALUES(category), 
+                                     icon = VALUES(icon), 
+                                     sort_order = VALUES(sort_order)");
+        mysqli_stmt_bind_param($stmt, "sssssi", $mod[0], $mod[1], $mod[2], $mod[3], $mod[4], $mod[5]);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+    }
+
+    // 3. Seed Permissions (Admin Wildcard)
+    mysqli_query($conn, "INSERT INTO role_permissions (role_id, module_id, can_view, can_create, can_edit, can_delete)
+                        SELECT r.id, m.id, 1, 1, 1, 1 FROM roles r CROSS JOIN modules m WHERE r.role_key = 'admin'
+                        ON DUPLICATE KEY UPDATE can_view = 1, can_create = 1, can_edit = 1, can_delete = 1");
+
+    // 4. Seed Manager Permissions
+    $manager_perms_sql = "INSERT INTO role_permissions (role_id, module_id, can_view, can_create, can_edit, can_delete)
+        SELECT r.id, m.id, 1,
+            CASE WHEN m.module_key IN ('fiscal_periods', 'general_ledger', 'reports', 'audit_trail') THEN 0 ELSE 1 END,
+            CASE WHEN m.module_key IN ('fiscal_periods', 'general_ledger', 'reports', 'audit_trail', 'journal_vouchers', 'users', 'settings', 'roles_permissions') THEN 0 ELSE 1 END,
+            CASE WHEN m.module_key IN ('revenues', 'expenses') THEN 1 ELSE 0 END
+        FROM roles r CROSS JOIN modules m WHERE r.role_key = 'manager' AND m.module_key NOT IN ('settings', 'batch_processing', 'roles_permissions')
+        ON DUPLICATE KEY UPDATE can_view = VALUES(can_view), can_create = VALUES(can_create), can_edit = VALUES(can_edit), can_delete = VALUES(can_delete)";
+    mysqli_query($conn, $manager_perms_sql);
+
+    // 5. Seed Accountant Permissions
+    $accountant_perms_sql = "INSERT INTO role_permissions (role_id, module_id, can_view, can_create, can_edit, can_delete)
+        SELECT r.id, m.id, 1,
+            CASE WHEN m.module_key IN ('products', 'fiscal_periods', 'general_ledger', 'reports', 'audit_trail', 'recurring_transactions') THEN 0 ELSE 1 END,
+            CASE WHEN m.module_key IN ('sales', 'products', 'purchases', 'fiscal_periods', 'general_ledger', 'journal_vouchers', 'reports', 'audit_trail', 'recurring_transactions') THEN 0 ELSE 1 END,
+            0
+        FROM roles r CROSS JOIN modules m WHERE r.role_key = 'accountant' AND m.module_key NOT IN ('users', 'settings', 'batch_processing', 'roles_permissions')
+        ON DUPLICATE KEY UPDATE can_view = VALUES(can_view), can_create = VALUES(can_create), can_edit = VALUES(can_edit), can_delete = VALUES(can_delete)";
+    mysqli_query($conn, $accountant_perms_sql);
+
+    // 6. Seed Cashier Permissions
+    $cashier_perms_sql = "INSERT INTO role_permissions (role_id, module_id, can_view, can_create, can_edit, can_delete)
+        SELECT r.id, m.id, 1,
+            CASE WHEN m.module_key = 'sales' THEN 1 ELSE 0 END,
+            0, 0
+        FROM roles r CROSS JOIN modules m WHERE r.role_key = 'cashier' AND m.module_key IN ('dashboard', 'sales', 'products', 'ar_customers')
+        ON DUPLICATE KEY UPDATE can_view = VALUES(can_view), can_create = VALUES(can_create), can_edit = VALUES(can_edit), can_delete = VALUES(can_delete)";
+    mysqli_query($conn, $cashier_perms_sql);
+
+    // 7. Migration: Sync existing user role strings to role_id
+    mysqli_query($conn, "UPDATE users u INNER JOIN roles r ON u.role = r.role_key SET u.role_id = r.id WHERE u.role_id IS NULL");
 }

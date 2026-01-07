@@ -9,6 +9,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   const isAuthenticated = await checkAuth();
   if (!isAuthenticated) return;
 
+  // Setup UI permissions
+  if (!canAccess("products", "create")) {
+    const addBtn = document.querySelector('button[onclick="openAddDialog()"]');
+    if (addBtn) addBtn.style.display = "none";
+  }
+
   // Setup Search
   const searchInput = document.getElementById("params-search");
   if (searchInput) {
@@ -118,13 +124,21 @@ function renderProducts() {
                 <div class="action-buttons">
                     <button class="icon-btn view" onclick="viewProduct(${
                       p.id
-                    })">${getIcon("eye")}</button>
-                    <button class="icon-btn edit" onclick="editProduct(${
-                      p.id
-                    })">${getIcon("edit")}</button>
-                    <button class="icon-btn delete" onclick="deleteProduct(${
-                      p.id
-                    })">${getIcon("trash")}</button>
+                    })" title="عرض">${getIcon("eye")}</button>
+                    ${
+                      canAccess("products", "edit")
+                        ? `<button class="icon-btn edit" onclick="editProduct(${
+                            p.id
+                          })" title="تعديل">${getIcon("edit")}</button>`
+                        : ""
+                    }
+                    ${
+                      canAccess("products", "delete")
+                        ? `<button class="icon-btn delete" onclick="deleteProduct(${
+                            p.id
+                          })" title="حذف">${getIcon("trash")}</button>`
+                        : ""
+                    }
                 </div>
             </td>
         </tr>

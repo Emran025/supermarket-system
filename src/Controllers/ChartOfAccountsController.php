@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 
 /**
@@ -23,6 +24,8 @@ class ChartOfAccountsController extends Controller
             $this->errorResponse('Unauthorized', 401);
         }
 
+        PermissionService::requirePermission('chart_of_accounts', 'view');
+
         $method = $_SERVER['REQUEST_METHOD'];
         $action = $_GET['action'] ?? '';
 
@@ -33,10 +36,13 @@ class ChartOfAccountsController extends Controller
                 $this->getAccounts();
             }
         } elseif ($method === 'POST') {
+            PermissionService::requirePermission('chart_of_accounts', 'create');
             $this->createAccount();
         } elseif ($method === 'PUT') {
+            PermissionService::requirePermission('chart_of_accounts', 'edit');
             $this->updateAccount();
         } elseif ($method === 'DELETE') {
+            PermissionService::requirePermission('chart_of_accounts', 'delete');
             $this->deleteAccount();
         }
     }

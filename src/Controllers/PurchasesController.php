@@ -4,6 +4,7 @@ require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/InventoryCostingService.php';
 require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class PurchasesController extends Controller
 {
@@ -24,6 +25,8 @@ class PurchasesController extends Controller
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
+
+        PermissionService::requirePermission('purchases', 'view');
 
         // Handle Purchase Requests
         if (isset($_GET['action']) && $_GET['action'] === 'requests') {
@@ -66,15 +69,8 @@ class PurchasesController extends Controller
         $data = $this->getJsonInput();
         $purchase_id = intval($data['id'] ?? 0);
 
-        // Check if user is manager or admin
-        $user_id = $_SESSION['user_id'];
-        $user_result = mysqli_query($this->conn, "SELECT role FROM users WHERE id = $user_id");
-        $user = mysqli_fetch_assoc($user_result);
-        $user_role = $user['role'] ?? 'sales';
-
-        if (!in_array($user_role, ['admin', 'manager'])) {
-            $this->errorResponse('Only managers and admins can approve purchases', 403);
-        }
+        // Check permissions (replaces manual manager/admin check)
+        PermissionService::requirePermission('purchases', 'edit'); 
 
         $result = mysqli_query($this->conn, "SELECT * FROM purchases WHERE id = $purchase_id");
         $purchase = mysqli_fetch_assoc($result);
@@ -300,6 +296,7 @@ class PurchasesController extends Controller
 
     private function createPurchase()
     {
+        PermissionService::requirePermission('purchases', 'create');
         $data = $this->getJsonInput();
 
         $product_id = intval($data['product_id'] ?? 0);
@@ -517,6 +514,7 @@ class PurchasesController extends Controller
 
     private function updatePurchase()
     {
+        PermissionService::requirePermission('purchases', 'edit');
         $data = $this->getJsonInput();
         $id = intval($data['id'] ?? 0);
 
@@ -600,6 +598,7 @@ class PurchasesController extends Controller
 
     private function deletePurchase()
     {
+        PermissionService::requirePermission('purchases', 'delete');
         $id = intval($_GET['id'] ?? 0);
 
         // Get purchase details

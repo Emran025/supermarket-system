@@ -10,6 +10,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   const isAuthenticated = await checkAuth();
   if (!isAuthenticated) return;
 
+  // Setup UI permissions
+  if (!canAccess("purchases", "create")) {
+    const addBtn = document.querySelector('button[onclick="openAddDialog()"]');
+    if (addBtn) addBtn.style.display = "none";
+  }
+
   // Setup Search
   const searchInput = document.getElementById("params-search");
   if (searchInput) {
@@ -167,17 +173,19 @@ function renderPurchases() {
                     <div class="action-buttons">
                         <button class="icon-btn view" onclick="viewPurchase(${
                           p.id
-                        })">${getIcon("eye")}</button>
+                        })" title="عرض">${getIcon("eye")}</button>
                         ${
-                          canEdit
-                            ? `
-                            <button class="icon-btn edit" onclick="editPurchase(${
-                              p.id
-                            })">${getIcon("edit")}</button>
-                            <button class="icon-btn delete" onclick="deletePurchase(${
-                              p.id
-                            })">${getIcon("trash")}</button>
-                        `
+                          canEdit && canAccess("purchases", "edit")
+                            ? `<button class="icon-btn edit" onclick="editPurchase(${
+                                p.id
+                              })" title="تعديل">${getIcon("edit")}</button>`
+                            : ""
+                        }
+                        ${
+                          canEdit && canAccess("purchases", "delete")
+                            ? `<button class="icon-btn delete" onclick="deletePurchase(${
+                                p.id
+                              })" title="حذف">${getIcon("trash")}</button>`
                             : ""
                         }
                     </div>

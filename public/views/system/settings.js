@@ -49,27 +49,31 @@ document.addEventListener("DOMContentLoaded", async function () {
     const user = await checkAuth();
     if (!user) return;
 
-    const isAdmin = user.role === "admin";
-    const activeTab = isAdmin ? "store" : "account";
+    // Use granular permissions instead of binary isAdmin
+    const canManageStore = canAccess("settings", "view");
+    const canManageInvoices = canAccess("settings", "view");
+    const canManageRoles = canAccess("roles_permissions", "view");
 
-    if (!isAdmin) {
-      // Hide admin sections in dropdown
-      document
-        .querySelectorAll(
-          '.dropdown-item[data-value="store"], .dropdown-item[data-value="invoices"]'
-        )
-        .forEach((item) => {
-          item.remove();
-        });
+    // Determine default tab (account is always visible for password change)
+    let activeTab = "account";
+    if (canManageStore) activeTab = "store";
 
-      // Hide admin-only buttons (Desktop fallback)
+    // Hide/Show sections based on permissions
+    const hideSection = (value) => {
       document
-        .querySelectorAll(
-          '.tab-btn[data-tab="store"], .tab-btn[data-tab="invoices"]'
-        )
+        .querySelectorAll(`.dropdown-item[data-value="${value}"]`)
+        .forEach((i) => i.remove());
+      document
+        .querySelectorAll(`.tab-btn[data-tab="${value}"]`)
         .forEach((t) => (t.style.display = "none"));
+    };
 
-      // Update titles
+    if (!canManageStore) hideSection("store");
+    if (!canManageInvoices) hideSection("invoices");
+    if (!canManageRoles) hideSection("roles");
+
+    if (!canManageStore && !canManageInvoices && !canManageRoles) {
+      // Update titles for restricted users
       const title = document.querySelector(".header-title h1");
       if (title) title.textContent = "إعدادات الحساب";
       const subTitle = document.querySelector(".header-title p");
@@ -77,7 +81,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     // Load actual section data
-    if (isAdmin) {
+    if (canManageStore || canManageInvoices) {
       await loadSettings().catch(console.error);
     }
     await loadSessions().catch(console.error);

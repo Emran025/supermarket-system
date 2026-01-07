@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class ProductsController extends Controller {
 
@@ -8,6 +9,8 @@ class ProductsController extends Controller {
         if (!is_logged_in()) {
             $this->errorResponse('Unauthorized', 401);
         }
+
+        PermissionService::requirePermission('products', 'view');
 
         $method = $_SERVER['REQUEST_METHOD'];
 
@@ -96,6 +99,7 @@ class ProductsController extends Controller {
     }
 
     private function createProduct() {
+        PermissionService::requirePermission('products', 'create');
         $data = $this->getJsonInput();
         
         $name = mysqli_real_escape_string($this->conn, $data['name'] ?? '');
@@ -124,6 +128,7 @@ class ProductsController extends Controller {
     }
 
     private function updateProduct() {
+        PermissionService::requirePermission('products', 'edit');
         $data = $this->getJsonInput();
         
         $id = intval($data['id'] ?? 0);
@@ -150,10 +155,7 @@ class ProductsController extends Controller {
     }
 
     private function deleteProduct() {
-        if ($_SESSION['role'] !== 'admin') {
-            $this->errorResponse('Permission denied. Only admins can delete products.', 403);
-            return;
-        }
+        PermissionService::requirePermission('products', 'delete');
         $id = intval($_GET['id'] ?? 0);
         
         $stmt = mysqli_prepare($this->conn, "DELETE FROM products WHERE id = ?");

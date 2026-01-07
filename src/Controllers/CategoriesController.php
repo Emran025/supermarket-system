@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class CategoriesController extends Controller {
 
@@ -9,11 +10,14 @@ class CategoriesController extends Controller {
             $this->errorResponse('Unauthorized', 401);
         }
 
+        PermissionService::requirePermission('products', 'view');
+
         $method = $_SERVER['REQUEST_METHOD'];
 
         if ($method === 'GET') {
             $this->getCategories();
         } elseif ($method === 'POST') {
+            PermissionService::requirePermission('products', 'create');
             $this->createCategory();
         }
     }

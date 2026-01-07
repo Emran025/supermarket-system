@@ -3,6 +3,7 @@
 require_once __DIR__ . '/Controller.php';
 require_once __DIR__ . '/../Services/LedgerService.php';
 require_once __DIR__ . '/../Services/ChartOfAccountsMappingService.php';
+require_once __DIR__ . '/../Services/PermissionService.php';
 
 class ApController extends Controller
 {
@@ -22,6 +23,8 @@ class ApController extends Controller
             $this->errorResponse('Unauthorized', 401);
         }
 
+        PermissionService::requirePermission('ap_suppliers', 'view');
+
         $action = $_GET['action'] ?? 'suppliers';
         $method = $_SERVER['REQUEST_METHOD'];
 
@@ -29,17 +32,21 @@ class ApController extends Controller
             if ($method === 'GET') {
                 $this->getSuppliers();
             } elseif ($method === 'POST') {
+                PermissionService::requirePermission('ap_suppliers', 'create');
                 $this->createSupplier();
             } elseif ($method === 'PUT') {
+                PermissionService::requirePermission('ap_suppliers', 'edit');
                 $this->updateSupplier();
             } elseif ($method === 'DELETE') {
+                PermissionService::requirePermission('ap_suppliers', 'delete');
                 $this->deleteSupplier();
             }
         } elseif ($action === 'transactions') {
             if ($method === 'GET') {
                 $this->getTransactions();
             } elseif ($method === 'POST') {
-                $this->createTransaction();
+                PermissionService::requirePermission('ar_customers', 'create');
+                $this->createCustomer();
             }
         } elseif ($action === 'payments') {
             if ($method === 'POST') {

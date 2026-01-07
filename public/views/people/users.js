@@ -1,5 +1,6 @@
 let users = [];
 let managerList = [];
+let roleList = [];
 let currentPage = 1;
 let itemsPerPage = 20;
 let totalItems = 0;
@@ -9,22 +10,54 @@ document.addEventListener("DOMContentLoaded", async () => {
   const user = await checkAuth();
   if (!user) return;
 
-  // Only admin can access this page
-  if (user.role !== "admin") {
+  // Only users with 'users' view permission can access this page
+  if (!canAccess("users", "view")) {
     window.location.href = "dashboard.html";
     return;
   }
 
+  await loadAccountRoles(); // Load roles for dropdowns
   await loadManagers();
   await loadUsers();
 
   // Add User button
   const btn = document.getElementById("addUserBtn");
-  btn.onclick = function () {
-    populateManagerDropdown("manager", null);
-    openDialog("userModal");
-  };
+  if (btn) {
+    btn.onclick = function () {
+      populateManagerDropdown("manager", null);
+      openDialog("userModal");
+    };
+  }
 });
+
+/**
+ * Load roles from API and populate dropdowns
+ */
+async function loadAccountRoles() {
+  try {
+    const response = await fetchAPI("roles");
+    if (response.success) {
+      roleList = response.data;
+      populateRoleDropdown("role_id");
+      populateRoleDropdown("edit_role_id");
+    }
+  } catch (error) {
+    console.error("Error loading roles:", error);
+  }
+}
+
+function populateRoleDropdown(elementId) {
+  const select = document.getElementById(elementId);
+  if (!select) return;
+
+  select.innerHTML = '<option value="">-- اختر الدور الصلاحي --</option>';
+  roleList.forEach((role) => {
+    const option = document.createElement("option");
+    option.value = role.id;
+    option.textContent = `${role.role_name_ar} (${role.role_key})`;
+    select.appendChild(option);
+  });
+}
 
 // Dialog helper functions
 function closeUserModal() {
@@ -48,14 +81,14 @@ document.getElementById("userForm").addEventListener("submit", async (e) => {
 
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
-  const role = document.getElementById("role").value;
+  const role_id = document.getElementById("role_id").value;
   const manager_id = document.getElementById("manager").value;
 
   try {
     const response = await fetchAPI("users", "POST", {
       username,
       password,
-      role,
+      role_id,
       manager_id,
     });
 
@@ -80,14 +113,14 @@ document
     e.preventDefault();
 
     const id = document.getElementById("editUserId").value;
-    const role = document.getElementById("editRole").value;
+    const role_id = document.getElementById("edit_role_id").value;
     const isActive = document.getElementById("editIsActive").checked ? 1 : 0;
     const manager_id = document.getElementById("editManager").value;
 
     try {
       const response = await fetchAPI("users", "PUT", {
         id,
-        role,
+        role_id,
         is_active: isActive,
         manager_id,
       });
@@ -160,10 +193,16 @@ function renderUsers() {
 
   users.forEach((u) => {
     const row = document.createElement("tr");
-    const roleBadge =
-      u.role === "admin"
-        ? '<span class="badge badge-primary">مدير النظام</span>'
-        : '<span class="badge badge-secondary">مبيعات</span>';
+
+    // Dynamic role badges based on role_key
+    let badgeClass = "badge-secondary";
+    if (u.role_key === "admin") badgeClass = "badge-primary";
+    else if (u.role_key === "manager") badgeClass = "badge-success";
+    else if (u.role_key === "accountant") badgeClass = "badge-info";
+
+    const roleBadge = `<span class="badge ${badgeClass}">${
+      u.role_name_ar || u.role_key
+    }</span>`;
 
     const statusBadge =
       u.is_active == 1
@@ -184,7 +223,7 @@ function renderUsers() {
             <td>
                 <button class="btn btn-sm btn-secondary" onclick="openEditModal(${
                   u.id
-                }, '${u.role}', ${u.is_active}, ${u.manager_id})">
+                }, ${u.role_id}, ${u.is_active}, ${u.manager_id})">
                     <i class="fas fa-edit"></i> تعديل
                 </button>
             </td>
@@ -211,9 +250,9 @@ function populateManagerDropdown(elementId, excludeId) {
 }
 
 // Make globally available for onclick
-window.openEditModal = function (id, role, isActive, managerId) {
+window.openEditModal = function (id, roleId, isActive, managerId) {
   document.getElementById("editUserId").value = id;
-  document.getElementById("editRole").value = role;
+  document.getElementById("edit_role_id").value = roleId;
   document.getElementById("editIsActive").checked = isActive == 1;
 
   populateManagerDropdown("editManager", id);
