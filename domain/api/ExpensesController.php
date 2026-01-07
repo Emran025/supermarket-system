@@ -1,8 +1,18 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../LedgerService.php';
+require_once __DIR__ . '/../ChartOfAccountsMappingService.php';
 
 class ExpensesController extends Controller {
+    private $ledgerService;
+    private $coaMapping;
+    
+    public function __construct() {
+        parent::__construct();
+        $this->ledgerService = new LedgerService();
+        $this->coaMapping = new ChartOfAccountsMappingService();
+    }
 
     public function handle() {
         if (!is_logged_in()) {
@@ -66,23 +76,65 @@ class ExpensesController extends Controller {
         
         $category = $data['category'] ?? '';
         $amount = floatval($data['amount'] ?? 0);
-        $expense_date = $data['expense_date'] ?? date('Y-m-d H:i:s');
+        $expense_date = $data['expense_date'] ?? date('Y-m-d');
         $description = $data['description'] ?? '';
+        // FIN-003: Use Chart of Accounts instead of hardcoded categories
+        $accounts = $this->coaMapping->getStandardAccounts();
+        $account_code = $data['account_code'] ?? $accounts['operating_expenses']; // Default to Operating Expenses
         $user_id = $_SESSION['user_id'];
 
         if (empty($category) || $amount <= 0) {
             $this->errorResponse('Category and positive amount required');
         }
-
-        $stmt = mysqli_prepare($this->conn, "INSERT INTO expenses (category, amount, expense_date, description, user_id) VALUES (?, ?, ?, ?, ?)");
-        mysqli_stmt_bind_param($stmt, "sdssi", $category, $amount, $expense_date, $description, $user_id);
         
-        if (mysqli_stmt_execute($stmt)) {
+        // Validate account code exists in COA
+        if ($account_code) {
+            $acc_result = mysqli_query($this->conn, "SELECT id, account_type FROM chart_of_accounts WHERE account_code = '" . mysqli_real_escape_string($this->conn, $account_code) . "' AND is_active = 1");
+            if (!$acc_result || mysqli_num_rows($acc_result) == 0) {
+                $this->errorResponse('Invalid account code. Please select a valid account from Chart of Accounts');
+            }
+            $acc_row = mysqli_fetch_assoc($acc_result);
+            if ($acc_row['account_type'] !== 'Expense') {
+                $this->errorResponse('Account code must be an Expense account');
+            }
+        }
+
+        mysqli_begin_transaction($this->conn);
+        
+        try {
+            $stmt = mysqli_prepare($this->conn, "INSERT INTO expenses (category, account_code, amount, expense_date, description, user_id) VALUES (?, ?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "ssdssi", $category, $account_code, $amount, $expense_date, $description, $user_id);
+            mysqli_stmt_execute($stmt);
             $id = mysqli_insert_id($this->conn);
+            mysqli_stmt_close($stmt);
+            
+            // Post to General Ledger - Double Entry
+            $voucher_number = $this->ledgerService->getNextVoucherNumber('EXP');
+            
+            $accounts = $this->coaMapping->getStandardAccounts();
+            $gl_entries = [
+                [
+                    'account_code' => $account_code, // Expense account from COA
+                    'entry_type' => 'DEBIT',
+                    'amount' => $amount,
+                    'description' => "$category - $description"
+                ],
+                [
+                    'account_code' => $accounts['cash'], // Cash
+                    'entry_type' => 'CREDIT',
+                    'amount' => $amount,
+                    'description' => "دفع مصروف - $category"
+                ]
+            ];
+            
+            $this->ledgerService->postTransaction($gl_entries, 'expenses', $id, $voucher_number, $expense_date);
+            
+            mysqli_commit($this->conn);
             log_operation('CREATE', 'expenses', $id, null, $data);
-            $this->successResponse(['id' => $id]);
-        } else {
-            $this->errorResponse('Failed to create expense');
+            $this->successResponse(['id' => $id, 'voucher_number' => $voucher_number]);
+        } catch (Exception $e) {
+            mysqli_rollback($this->conn);
+            $this->errorResponse($e->getMessage());
         }
     }
 
@@ -94,17 +146,30 @@ class ExpensesController extends Controller {
         $amount = floatval($data['amount'] ?? 0);
         $expense_date = $data['expense_date'] ?? date('Y-m-d H:i:s');
         $description = $data['description'] ?? '';
+        $account_code = $data['account_code'] ?? null;
 
         if (empty($category) || $amount <= 0) {
             $this->errorResponse('Category and positive amount required');
+        }
+        
+        // Validate account code if provided
+        if ($account_code) {
+            $acc_result = mysqli_query($this->conn, "SELECT id, account_type FROM chart_of_accounts WHERE account_code = '" . mysqli_real_escape_string($this->conn, $account_code) . "' AND is_active = 1");
+            if (!$acc_result || mysqli_num_rows($acc_result) == 0) {
+                $this->errorResponse('Invalid account code');
+            }
+            $acc_row = mysqli_fetch_assoc($acc_result);
+            if ($acc_row['account_type'] !== 'Expense') {
+                $this->errorResponse('Account code must be an Expense account');
+            }
         }
 
         // Get old values for logging
         $old_res = mysqli_query($this->conn, "SELECT * FROM expenses WHERE id = $id");
         $old_data = mysqli_fetch_assoc($old_res);
 
-        $stmt = mysqli_prepare($this->conn, "UPDATE expenses SET category = ?, amount = ?, expense_date = ?, description = ? WHERE id = ?");
-        mysqli_stmt_bind_param($stmt, "sdssi", $category, $amount, $expense_date, $description, $id);
+        $stmt = mysqli_prepare($this->conn, "UPDATE expenses SET category = ?, account_code = ?, amount = ?, expense_date = ?, description = ? WHERE id = ?");
+        mysqli_stmt_bind_param($stmt, "ssdssi", $category, $account_code, $amount, $expense_date, $description, $id);
         
         if (mysqli_stmt_execute($stmt)) {
             log_operation('UPDATE', 'expenses', $id, $old_data, $data);

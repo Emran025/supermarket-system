@@ -1,8 +1,21 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../LedgerService.php';
+require_once __DIR__ . '/../InventoryCostingService.php';
+require_once __DIR__ . '/../ChartOfAccountsMappingService.php';
 
 class SalesController extends Controller {
+    private $ledgerService;
+    private $costingService;
+    private $coaMapping;
+    
+    public function __construct() {
+        parent::__construct();
+        $this->ledgerService = new LedgerService();
+        $this->costingService = new InventoryCostingService();
+        $this->coaMapping = new ChartOfAccountsMappingService();
+    }
 
     public function handle() {
         if (!is_logged_in()) {
@@ -31,10 +44,10 @@ class SalesController extends Controller {
         $offset = $params['offset'];
         $payment_type = $_GET['payment_type'] ?? null;
 
-        $where = "";
+        $where = " WHERE i.is_reversed = 0 ";
         if ($payment_type) {
             $type = mysqli_real_escape_string($this->conn, $payment_type);
-            $where = " WHERE i.payment_type = '$type' ";
+            $where .= " AND i.payment_type = '$type' ";
         }
 
         // Count total
@@ -92,10 +105,11 @@ class SalesController extends Controller {
 
     private function createInvoice() {
         $data = $this->getJsonInput();
-        $invoice_number = mysqli_real_escape_string($this->conn, $data['invoice_number'] ?? '');
+        $invoice_number = $data['invoice_number'] ?? '';
         $items = $data['items'] ?? [];
         $payment_type = mysqli_real_escape_string($this->conn, $data['payment_type'] ?? 'cash');
         $customer_id = intval($data['customer_id'] ?? 0);
+        $vat_rate = floatval($data['vat_rate'] ?? 0.00);
         
         if ($payment_type === 'credit' && $customer_id === 0) {
             $this->errorResponse('Customer is required for credit sales', 400);
@@ -108,20 +122,138 @@ class SalesController extends Controller {
         mysqli_begin_transaction($this->conn);
         
         try {
-            $total = 0;
-            foreach ($items as $item) {
-                $subtotal = floatval($item['quantity']) * floatval($item['unit_price']);
-                $total += $subtotal;
+            // Generate voucher number if not provided
+            if (empty($invoice_number)) {
+                $invoice_number = $this->ledgerService->getNextVoucherNumber('INV');
             }
             
-            $amount_paid = floatval($data['amount_paid'] ?? 0);
+            // Calculate subtotal and total
+            $subtotal = 0;
+            $total_cogs = 0;
+            
+            foreach ($items as $item) {
+                $item_subtotal = floatval($item['quantity']) * floatval($item['unit_price']);
+                $subtotal += $item_subtotal;
+            }
+            
+            // Calculate VAT
+            $vat_amount = $subtotal * ($vat_rate / 100);
+            $total = $subtotal + $vat_amount;
+            $amount_paid = floatval($data['amount_paid'] ?? ($payment_type === 'cash' ? $total : 0));
 
             $user_id = $_SESSION['user_id'];
-            $stmt = mysqli_prepare($this->conn, "INSERT INTO invoices (invoice_number, total_amount, user_id, payment_type, customer_id, amount_paid) VALUES (?, ?, ?, ?, ?, ?)");
-            mysqli_stmt_bind_param($stmt, "sdisid", $invoice_number, $total, $user_id, $payment_type, $customer_id, $amount_paid);
+            $voucher_number = $this->ledgerService->getNextVoucherNumber('VOU');
+            
+            // Insert invoice
+            $stmt = mysqli_prepare($this->conn, "INSERT INTO invoices (invoice_number, voucher_number, total_amount, subtotal, vat_rate, vat_amount, user_id, payment_type, customer_id, amount_paid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "ssdddddsid", $invoice_number, $voucher_number, $total, $subtotal, $vat_rate, $vat_amount, $user_id, $payment_type, $customer_id, $amount_paid);
             mysqli_stmt_execute($stmt);
             $invoice_id = mysqli_insert_id($this->conn);
             mysqli_stmt_close($stmt);
+
+            // Process items and calculate COGS
+            foreach ($items as $item) {
+                $product_id = intval($item['product_id']);
+                $quantity = intval($item['quantity']);
+                $unit_price = floatval($item['unit_price']);
+                $item_subtotal = $quantity * $unit_price;
+                
+                // Calculate COGS using FIFO
+                $item_cogs = $this->costingService->calculateCOGS_FIFO($product_id, $quantity);
+                $total_cogs += $item_cogs;
+                
+                $stmt = mysqli_prepare($this->conn, "INSERT INTO invoice_items (invoice_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)");
+                mysqli_stmt_bind_param($stmt, "iiidd", $invoice_id, $product_id, $quantity, $unit_price, $item_subtotal);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+                
+                // Update stock
+                $stmt = mysqli_prepare($this->conn, "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?");
+                mysqli_stmt_bind_param($stmt, "ii", $quantity, $product_id);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+            }
+
+            // Post to General Ledger - Double Entry
+            $gl_entries = [];
+            
+            $accounts = $this->coaMapping->getStandardAccounts();
+            
+            if ($payment_type === 'cash') {
+                // Cash Sale: Debit Cash, Credit Sales Revenue
+                $gl_entries[] = [
+                    'account_code' => $accounts['cash'],
+                    'entry_type' => 'DEBIT',
+                    'amount' => $total,
+                    'description' => "فاتورة مبيعات نقدية رقم $invoice_number"
+                ];
+            } else {
+                // Credit Sale with partial payment:
+                // - Debit AR for the outstanding amount (total - amount_paid)
+                // - Debit Cash for the amount paid (if any)
+                // - Credit Sales Revenue for subtotal
+                // - Credit Output VAT for VAT amount
+                $outstanding_amount = $total - $amount_paid;
+                
+                if ($outstanding_amount > 0) {
+                    $gl_entries[] = [
+                        'account_code' => $accounts['accounts_receivable'],
+                        'entry_type' => 'DEBIT',
+                        'amount' => $outstanding_amount,
+                        'description' => "فاتورة مبيعات آجلة رقم $invoice_number (المبلغ المتبقي)"
+                    ];
+                }
+                
+                // If partial payment, debit cash
+                if ($amount_paid > 0) {
+                    $gl_entries[] = [
+                        'account_code' => $accounts['cash'],
+                        'entry_type' => 'DEBIT',
+                        'amount' => $amount_paid,
+                        'description' => "دفعة مقدمة من الفاتورة رقم $invoice_number"
+                    ];
+                }
+            }
+            
+            // Credit Sales Revenue
+            $gl_entries[] = [
+                'account_code' => $accounts['sales_revenue'],
+                'entry_type' => 'CREDIT',
+                'amount' => $subtotal,
+                'description' => "مبيعات - فاتورة رقم $invoice_number"
+            ];
+            
+            // Credit Output VAT (if applicable)
+            if ($vat_amount > 0) {
+                $gl_entries[] = [
+                    'account_code' => $accounts['output_vat'],
+                    'entry_type' => 'CREDIT',
+                    'amount' => $vat_amount,
+                    'description' => "ضريبة القيمة المضافة - فاتورة رقم $invoice_number"
+                ];
+            }
+            
+            // Post sales transaction
+            $this->ledgerService->postTransaction($gl_entries, 'invoices', $invoice_id, $voucher_number);
+            
+            // Post COGS transaction
+            if ($total_cogs > 0) {
+                $cogs_entries = [
+                    [
+                        'account_code' => $accounts['cogs'],
+                        'entry_type' => 'DEBIT',
+                        'amount' => $total_cogs,
+                        'description' => "تكلفة البضاعة المباعة - فاتورة رقم $invoice_number"
+                    ],
+                    [
+                        'account_code' => $accounts['inventory'],
+                        'entry_type' => 'CREDIT',
+                        'amount' => $total_cogs,
+                        'description' => "تقليل المخزون - فاتورة رقم $invoice_number"
+                    ]
+                ];
+                $this->ledgerService->postTransaction($cogs_entries, 'invoices', $invoice_id);
+            }
 
             // If Credit Sale, Add to AR Ledger
             if ($payment_type === 'credit' && $customer_id > 0) {
@@ -146,28 +278,10 @@ class SalesController extends Controller {
                 // Update Customer Balance
                 $this->updateCustomerBalance($customer_id);
             }
-
-            
-            foreach ($items as $item) {
-                $product_id = intval($item['product_id']);
-                $quantity = intval($item['quantity']);
-                $unit_price = floatval($item['unit_price']);
-                $subtotal = $quantity * $unit_price;
-                
-                $stmt = mysqli_prepare($this->conn, "INSERT INTO invoice_items (invoice_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)");
-                mysqli_stmt_bind_param($stmt, "iiidd", $invoice_id, $product_id, $quantity, $unit_price, $subtotal);
-                mysqli_stmt_execute($stmt);
-                mysqli_stmt_close($stmt);
-                
-                $stmt = mysqli_prepare($this->conn, "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?");
-                mysqli_stmt_bind_param($stmt, "ii", $quantity, $product_id);
-                mysqli_stmt_execute($stmt);
-                mysqli_stmt_close($stmt);
-            }
             
             mysqli_commit($this->conn);
             log_operation('CREATE', 'invoices', $invoice_id, null, $data);
-            $this->successResponse(['id' => $invoice_id, 'invoice_number' => $invoice_number]);
+            $this->successResponse(['id' => $invoice_id, 'invoice_number' => $invoice_number, 'voucher_number' => $voucher_number]);
 
         } catch (Exception $e) {
             mysqli_rollback($this->conn);
@@ -178,16 +292,24 @@ class SalesController extends Controller {
     private function deleteInvoice() {
         $id = intval($_GET['id'] ?? 0);
         
-        $result = mysqli_query($this->conn, "SELECT created_at, customer_id, payment_type FROM invoices WHERE id = $id");
-        $row = mysqli_fetch_assoc($result);
-        if ($row) {
-            $invoice_time = strtotime($row['created_at']);
-            $hours_passed = (time() - $invoice_time) / 3600;
-            if ($hours_passed > 48) {
-                $this->errorResponse('Cannot delete invoice after 48 hours', 403);
-            }
+        // Get invoice details
+        $result = mysqli_query($this->conn, "SELECT i.*, i.voucher_number FROM invoices i WHERE i.id = $id");
+        $invoice = mysqli_fetch_assoc($result);
+        
+        if (!$invoice) {
+            $this->errorResponse('Invoice not found', 404);
         }
-        $customer_id = isset($row['customer_id']) ? intval($row['customer_id']) : 0;
+        
+        // Check if already reversed
+        $check_reversed = mysqli_query($this->conn, 
+            "SELECT COUNT(*) as count FROM general_ledger WHERE reference_type = 'invoices' AND reference_id = $id AND description LIKE '%Reversal%'");
+        $reversed_row = mysqli_fetch_assoc($check_reversed);
+        if ($reversed_row['count'] > 0) {
+            $this->errorResponse('Invoice has already been reversed', 400);
+        }
+        
+        $customer_id = isset($invoice['customer_id']) ? intval($invoice['customer_id']) : 0;
+        $voucher_number = $invoice['voucher_number'] ?? null;
         
         $result = mysqli_query($this->conn, "SELECT product_id, quantity FROM invoice_items WHERE invoice_id = $id");
         $items = [];
@@ -198,11 +320,14 @@ class SalesController extends Controller {
         mysqli_begin_transaction($this->conn);
         
         try {
-            $stmt = mysqli_prepare($this->conn, "DELETE FROM invoices WHERE id = ?");
-            mysqli_stmt_bind_param($stmt, "i", $id);
+            // Mark invoice as reversed (soft delete)
+            $user_id = $_SESSION['user_id'] ?? null;
+            $stmt = mysqli_prepare($this->conn, "UPDATE invoices SET is_reversed = 1, reversed_at = NOW(), reversed_by = ? WHERE id = ?");
+            mysqli_stmt_bind_param($stmt, "ii", $user_id, $id);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
             
+            // Restore stock
             foreach ($items as $item) {
                 $stmt = mysqli_prepare($this->conn, "UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?");
                 mysqli_stmt_bind_param($stmt, "ii", $item['quantity'], $item['product_id']);
@@ -210,20 +335,31 @@ class SalesController extends Controller {
                 mysqli_stmt_close($stmt);
             }
 
-            // Delete associated AR transaction if exists
-            $stmt = mysqli_prepare($this->conn, "DELETE FROM ar_transactions WHERE reference_type = 'invoices' AND reference_id = ?");
+            // Reverse GL entries if voucher number exists
+            if ($voucher_number) {
+                try {
+                    $this->ledgerService->reverseTransaction($voucher_number, "إلغاء فاتورة مبيعات رقم " . ($invoice['invoice_number'] ?? $id));
+                } catch (Exception $e) {
+                    error_log("Failed to reverse GL entries: " . $e->getMessage());
+                    // Continue with reversal even if GL reversal fails
+                }
+            }
+
+            // Mark AR transactions as reversed (soft delete)
+            $stmt = mysqli_prepare($this->conn, "UPDATE ar_transactions SET is_deleted = 1 WHERE reference_type = 'invoices' AND reference_id = ?");
             mysqli_stmt_bind_param($stmt, "i", $id);
             mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
             
             mysqli_commit($this->conn);
-            log_operation('DELETE', 'invoices', $id);
+            log_operation('REVERSE', 'invoices', $id, null, ['voucher_number' => $voucher_number]);
 
             // Update Customer Balance if applicable
             if ($customer_id > 0) {
                 $this->updateCustomerBalance($customer_id);
             }
 
-            $this->successResponse();
+            $this->successResponse(['message' => 'Invoice reversed successfully']);
 
         } catch (Exception $e) {
             mysqli_rollback($this->conn);

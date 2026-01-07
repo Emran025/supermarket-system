@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>المعالجة الدفعية - نظام إدارة السوبر ماركت</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="main-container">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <img
+            src="assets/images/logo.svg"
+            alt="Market Logo"
+            class="logo-img"
+          />
+          <h2>السوبر ماركت</h2>
+        </div>
+        <div class="sidebar-nav">
+          <!-- Links will be injected by common.js -->
+        </div>
+      </aside>
+
+      <main class="content animate-fade">
+        <div class="page-header">
+          <h1>المعالجة الدفعية</h1>
+          <div class="header-actions">
+            <span id="current-date" class="stat-label"></span>
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                border-right: 1px solid var(--border-color);
+                padding-right: 1rem;
+                margin-right: 1rem;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span
+                id="userRoleBadge"
+                class="badge"
+                style="display: none"
+              ></span>
+            </div>
+            <button class="btn btn-primary" onclick="showCreateModal()">
+              <i class="fas fa-plus"></i> دفعة جديدة
+            </button>
+          </div>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>اسم الدفعة</th>
+                <th>النوع</th>
+                <th>الحالة</th>
+                <th>عدد العناصر</th>
+                <th>تاريخ الإنشاء</th>
+                <th>تاريخ البدء</th>
+                <th>تاريخ الإكمال</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="batches-table-body"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="batches-pagination"></div>
+      </main>
+    </div>
+
+    <!-- Create Modal -->
+    <div id="batch-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>دفعة جديدة</h2>
+          <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="batch-form">
+            <div class="form-group">
+              <label>اسم الدفعة *</label>
+              <input type="text" id="batch-name" class="form-input" required />
+            </div>
+            <div class="form-group">
+              <label>نوع الدفعة *</label>
+              <select id="batch-type" class="form-input" required>
+                <option value="">اختر النوع</option>
+                <option value="journal_entry_import">استيراد قيود يومية</option>
+                <option value="expense_posting">ترحيل مصروفات</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>الوصف</label>
+              <textarea id="batch-description" class="form-input" rows="3"></textarea>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                إلغاء
+              </button>
+              <button type="submit" class="btn btn-primary">
+                حفظ
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Items Modal -->
+    <div id="items-modal" class="modal" style="display: none">
+      <div class="modal-content" style="max-width: 900px">
+        <div class="modal-header">
+          <h2>عناصر الدفعة</h2>
+          <button class="modal-close" onclick="closeItemsModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>البيانات</th>
+                  <th>الحالة</th>
+                  <th>رسالة الخطأ</th>
+                </tr>
+              </thead>
+              <tbody id="items-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="common.js"></script>
+    <script src="batch_processing.js"></script>
+  </body>
+</html>
+

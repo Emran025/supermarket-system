@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>دفتر الأستاذ العام - نظام إدارة السوبر ماركت</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      .ledger-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid var(--border-color);
+      }
+      .ledger-tab {
+        padding: 0.75rem 1.5rem;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+      }
+      .ledger-tab.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+      }
+      .ledger-tab:hover {
+        color: var(--primary-color);
+      }
+      .filter-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: var(--radius-lg);
+        margin-bottom: 1.5rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+      }
+      .table-container {
+        background: white;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+      }
+      .debit-amount {
+        color: var(--danger-color);
+        font-weight: 600;
+      }
+      .credit-amount {
+        color: var(--success-color);
+        font-weight: 600;
+      }
+      .trial-balance-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 0.5rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        font-weight: 600;
+        background: var(--primary-subtle);
+      }
+      .trial-balance-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .trial-balance-row:hover {
+        background: var(--surface-hover);
+      }
+      .account-history {
+        max-height: 600px;
+        overflow-y: auto;
+      }
+      .balance-positive {
+        color: var(--success-color);
+      }
+      .balance-negative {
+        color: var(--danger-color);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <img
+            src="assets/images/logo.svg"
+            alt="Market Logo"
+            class="logo-img"
+          />
+          <h2>السوبر ماركت</h2>
+        </div>
+        <div class="sidebar-nav">
+          <!-- Links will be injected by common.js -->
+        </div>
+      </aside>
+
+      <main class="content animate-fade">
+        <div class="page-header">
+          <h1>دفتر الأستاذ العام</h1>
+          <div class="header-actions">
+            <span id="current-date" class="stat-label"></span>
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                border-right: 1px solid var(--border-color);
+                padding-right: 1rem;
+                margin-right: 1rem;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span
+                id="userRoleBadge"
+                class="badge"
+                style="display: none"
+              ></span>
+            </div>
+            <button class="btn btn-secondary" onclick="exportLedger()">
+              <i class="fas fa-file-export"></i> تصدير
+            </button>
+            <button class="btn btn-primary" onclick="loadCurrentTab()">
+              <i class="fas fa-sync"></i> تحديث
+            </button>
+          </div>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <div class="ledger-tabs">
+          <button class="ledger-tab active" onclick="switchTab('entries')">
+            <i class="fas fa-list"></i> قيود اليومية
+          </button>
+          <button class="ledger-tab" onclick="switchTab('trial_balance')">
+            <i class="fas fa-balance-scale"></i> ميزان المراجعة
+          </button>
+          <button class="ledger-tab" onclick="switchTab('account_history')">
+            <i class="fas fa-history"></i> تاريخ الحساب
+          </button>
+        </div>
+
+        <!-- GL Entries Tab -->
+        <div id="tab-entries" class="tab-content">
+          <div class="filter-section">
+            <input
+              type="text"
+              id="filter-voucher"
+              class="form-input"
+              placeholder="رقم السند..."
+            />
+            <input
+              type="text"
+              id="filter-account"
+              class="form-input"
+              placeholder="رمز الحساب..."
+            />
+            <input
+              type="date"
+              id="filter-start-date"
+              class="form-input"
+            />
+            <input
+              type="date"
+              id="filter-end-date"
+              class="form-input"
+            />
+            <button class="btn btn-primary" onclick="filterEntries()">
+              <i class="fas fa-search"></i> بحث
+            </button>
+            <button class="btn btn-secondary" onclick="clearFilters()">
+              <i class="fas fa-times"></i> مسح
+            </button>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>رقم السند</th>
+                  <th>رمز الحساب</th>
+                  <th>اسم الحساب</th>
+                  <th>الوصف</th>
+                  <th>مدين</th>
+                  <th>دائن</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="gl-entries-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="entries-pagination"></div>
+        </div>
+
+        <!-- Trial Balance Tab -->
+        <div id="tab-trial_balance" class="tab-content" style="display: none">
+          <div class="filter-section">
+            <input
+              type="date"
+              id="tb-date"
+              class="form-input"
+              value=""
+            />
+            <button class="btn btn-primary" onclick="loadTrialBalance()">
+              <i class="fas fa-search"></i> عرض الميزان
+            </button>
+          </div>
+
+          <div class="table-container">
+            <div class="trial-balance-grid">
+              <div>الحساب</div>
+              <div style="text-align: center">مدين</div>
+              <div style="text-align: center">دائن</div>
+              <div style="text-align: center">الرصيد</div>
+            </div>
+            <div id="trial-balance-body"></div>
+            <div class="trial-balance-grid" style="margin-top: 1rem; border-top: 2px solid var(--primary-color);">
+              <div><strong>الإجمالي</strong></div>
+              <div id="tb-total-debits" style="text-align: center"></div>
+              <div id="tb-total-credits" style="text-align: center"></div>
+              <div id="tb-is-balanced" style="text-align: center"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account History Tab -->
+        <div id="tab-account_history" class="tab-content" style="display: none">
+          <div class="filter-section">
+            <input
+              type="text"
+              id="history-account-code"
+              class="form-input"
+              placeholder="رمز الحساب..."
+              required
+            />
+            <input
+              type="date"
+              id="history-start-date"
+              class="form-input"
+            />
+            <input
+              type="date"
+              id="history-end-date"
+              class="form-input"
+            />
+            <button class="btn btn-primary" onclick="loadAccountHistory()">
+              <i class="fas fa-search"></i> عرض التاريخ
+            </button>
+          </div>
+
+          <div class="table-container account-history">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>رقم السند</th>
+                  <th>الوصف</th>
+                  <th>مدين</th>
+                  <th>دائن</th>
+                  <th>الرصيد</th>
+                </tr>
+              </thead>
+              <tbody id="account-history-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="common.js"></script>
+    <script src="general_ledger.js"></script>
+  </body>
+</html>
+

@@ -36,6 +36,8 @@ try {
     require_once 'api/AssetsController.php';
     require_once 'api/RevenuesController.php';
     require_once 'api/ReportsController.php';
+    require_once 'api/ApController.php';
+    require_once 'api/FiscalPeriodsController.php';
 
 
 } catch (Exception $e) {
@@ -114,8 +116,61 @@ try {
     $router->register('expenses', 'ExpensesController');
     $router->register('assets', 'AssetsController');
     $router->register('revenues', 'RevenuesController');
-    $router->register('balance_sheet', 'ReportsController');
+    
+    // Accounts Payable
+    require_once 'api/ApController.php';
+    $router->register('ap_suppliers', 'ApController');
+    $router->register('ap_transactions', 'ApController');
+    $router->register('ap_payments', 'ApController');
+    
+    // Fiscal Periods
+    require_once 'api/FiscalPeriodsController.php';
+    $router->register('fiscal_periods', 'FiscalPeriodsController');
+    
+    // Chart of Accounts (FIN-003)
+    require_once 'api/ChartOfAccountsController.php';
+    $router->register('chart_of_accounts', 'ChartOfAccountsController');
 
+    // Reports
+    require_once 'api/ReportsController.php';
+    $router->register('reports', 'ReportsController');
+    
+    // General Ledger
+    require_once 'api/GeneralLedgerController.php';
+    $router->register('general_ledger', 'GeneralLedgerController');
+    $router->register('gl', 'GeneralLedgerController'); // Alias
+    
+    // Reconciliation
+    require_once 'api/ReconciliationController.php';
+    $router->register('reconciliation', 'ReconciliationController');
+    
+    // Journal Vouchers
+    require_once 'api/JournalVouchersController.php';
+    $router->register('journal_vouchers', 'JournalVouchersController');
+    
+    // Accrual Accounting
+    require_once 'api/AccrualAccountingController.php';
+    $router->register('accrual', 'AccrualAccountingController');
+    
+    // Periodic Inventory
+    require_once 'api/PeriodicInventoryController.php';
+    $router->register('periodic_inventory', 'PeriodicInventoryController');
+    
+    // ZATCA E-Invoicing
+    require_once 'api/ZATCAInvoiceController.php';
+    $router->register('zatca_invoice', 'ZATCAInvoiceController');
+    
+    // Recurring Transactions
+    require_once 'api/RecurringTransactionsController.php';
+    $router->register('recurring_transactions', 'RecurringTransactionsController');
+    
+    // Audit Trail
+    require_once 'api/AuditTrailController.php';
+    $router->register('audit_trail', 'AuditTrailController');
+    
+    // Batch Processing
+    require_once 'api/BatchProcessingController.php';
+    $router->register('batch', 'BatchProcessingController');
     
     $router->dispatch();
 

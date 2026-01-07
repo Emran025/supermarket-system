@@ -114,7 +114,7 @@ body {
   box-shadow: var(--shadow-sm);
   position: fixed;
   right: 0;
-  overflow: visible; /* To allow toggle button to peek out */
+  overflow: hidden;
 }
 
 .sidebar.collapsed {
@@ -169,6 +169,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebar-nav a {

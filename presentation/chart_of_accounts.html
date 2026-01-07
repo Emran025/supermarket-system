@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>دليل الحسابات - نظام إدارة السوبر ماركت</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="main-container">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <img
+            src="assets/images/logo.svg"
+            alt="Market Logo"
+            class="logo-img"
+          />
+          <h2>السوبر ماركت</h2>
+        </div>
+        <div class="sidebar-nav">
+          <!-- Links will be injected by common.js -->
+        </div>
+      </aside>
+
+      <main class="content animate-fade">
+        <div class="page-header">
+          <h1>دليل الحسابات</h1>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="loadAccountBalances()">
+              <i class="fas fa-balance-scale"></i> عرض الأرصدة
+            </button>
+            <button class="btn btn-primary" onclick="showCreateModal()">
+              <i class="fas fa-plus"></i> حساب جديد
+            </button>
+          </div>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <div class="filter-section" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); margin-bottom: 1.5rem;">
+          <select id="filter-type" class="form-input" onchange="loadAccounts()">
+            <option value="">جميع الأنواع</option>
+            <option value="Asset">الأصول</option>
+            <option value="Liability">الخصوم</option>
+            <option value="Equity">حقوق الملكية</option>
+            <option value="Revenue">الإيرادات</option>
+            <option value="Expense">المصروفات</option>
+          </select>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>رمز الحساب</th>
+                <th>اسم الحساب</th>
+                <th>النوع</th>
+                <th>الحساب الأب</th>
+                <th>الحالة</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="accounts-table-body"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="account-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title">حساب جديد</h2>
+          <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="account-form">
+            <input type="hidden" id="account-id" />
+            <div class="form-group">
+              <label>رمز الحساب *</label>
+              <input
+                type="text"
+                id="account-code"
+                class="form-input"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>اسم الحساب *</label>
+              <input
+                type="text"
+                id="account-name"
+                class="form-input"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>نوع الحساب *</label>
+              <select id="account-type" class="form-input" required>
+                <option value="">اختر النوع</option>
+                <option value="Asset">الأصول</option>
+                <option value="Liability">الخصوم</option>
+                <option value="Equity">حقوق الملكية</option>
+                <option value="Revenue">الإيرادات</option>
+                <option value="Expense">المصروفات</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>الحساب الأب (اختياري)</label>
+              <select id="account-parent" class="form-input">
+                <option value="">لا يوجد</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>الوصف</label>
+              <textarea
+                id="account-description"
+                class="form-input"
+                rows="3"
+              ></textarea>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                إلغاء
+              </button>
+              <button type="submit" class="btn btn-primary">
+                حفظ
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="common.js"></script>
+    <script src="chart_of_accounts.js"></script>
+  </body>
+</html>
+

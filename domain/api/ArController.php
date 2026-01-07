@@ -1,8 +1,18 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../LedgerService.php';
+require_once __DIR__ . '/../ChartOfAccountsMappingService.php';
 
 class ArController extends Controller {
+    private $ledgerService;
+    private $coaMapping;
+    
+    public function __construct() {
+        parent::__construct();
+        $this->ledgerService = new LedgerService();
+        $this->coaMapping = new ChartOfAccountsMappingService();
+    }
 
     public function handle() {
         if (!is_logged_in()) {
@@ -36,6 +46,10 @@ class ArController extends Controller {
                 $this->deleteTransaction();
             } elseif ($method === 'PUT') {
                 $this->updateTransaction();
+            }
+        } elseif ($action === 'customer_statement') {
+            if ($method === 'GET') {
+                $this->getCustomerStatement();
             }
         }
     }
@@ -379,5 +393,127 @@ class ArController extends Controller {
         mysqli_stmt_bind_param($stmt, "ii", $customer_id, $customer_id);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
+    }
+    
+    /**
+     * Get customer statement with aging analysis
+     */
+    private function getCustomerStatement() {
+        $customer_id = intval($_GET['customer_id'] ?? 0);
+        $start_date = $_GET['start_date'] ?? null;
+        $end_date = $_GET['end_date'] ?? date('Y-m-d');
+        
+        if ($customer_id <= 0) {
+            $this->errorResponse('Customer ID is required');
+        }
+        
+        // Get customer info
+        $customer_result = mysqli_query($this->conn, "SELECT * FROM ar_customers WHERE id = $customer_id");
+        $customer = mysqli_fetch_assoc($customer_result);
+        
+        if (!$customer) {
+            $this->errorResponse('Customer not found', 404);
+        }
+        
+        // Build date filter
+        $date_filter = "";
+        if ($start_date) {
+            $start_esc = mysqli_real_escape_string($this->conn, $start_date);
+            $date_filter = "AND t.transaction_date >= '$start_esc'";
+        }
+        $end_esc = mysqli_real_escape_string($this->conn, $end_date);
+        $date_filter .= " AND t.transaction_date <= '$end_esc'";
+        
+        // Get opening balance
+        $opening_balance = 0;
+        if ($start_date) {
+            $opening_result = mysqli_query($this->conn, 
+                "SELECT 
+                    SUM(CASE WHEN type = 'invoice' THEN amount ELSE 0 END) as total_debit,
+                    SUM(CASE WHEN type IN ('payment', 'return') THEN amount ELSE 0 END) as total_credit
+                 FROM ar_transactions
+                 WHERE customer_id = $customer_id AND is_deleted = 0 AND transaction_date < '$start_esc'");
+            if ($opening_result && mysqli_num_rows($opening_result) > 0) {
+                $opening_row = mysqli_fetch_assoc($opening_result);
+                $opening_balance = floatval($opening_row['total_debit'] ?? 0) - floatval($opening_row['total_credit'] ?? 0);
+            }
+        }
+        
+        // Get transactions
+        $result = mysqli_query($this->conn, 
+            "SELECT t.*, u.username as created_by_name,
+                    i.invoice_number, i.total_amount as invoice_total
+             FROM ar_transactions t
+             LEFT JOIN users u ON t.created_by = u.id
+             LEFT JOIN invoices i ON t.reference_type = 'invoices' AND t.reference_id = i.id
+             WHERE t.customer_id = $customer_id AND t.is_deleted = 0 $date_filter
+             ORDER BY t.transaction_date ASC, t.id ASC");
+        
+        $transactions = [];
+        $running_balance = $opening_balance;
+        
+        while ($row = mysqli_fetch_assoc($result)) {
+            $amount = floatval($row['amount']);
+            
+            if ($row['type'] === 'invoice') {
+                $running_balance += $amount;
+            } else {
+                $running_balance -= $amount;
+            }
+            
+            // Calculate days outstanding for invoices
+            $days_outstanding = null;
+            if ($row['type'] === 'invoice') {
+                $days_outstanding = (time() - strtotime($row['transaction_date'])) / 86400;
+            }
+            
+            $transactions[] = [
+                'id' => intval($row['id']),
+                'type' => $row['type'],
+                'amount' => $amount,
+                'description' => $row['description'],
+                'transaction_date' => $row['transaction_date'],
+                'reference_type' => $row['reference_type'],
+                'reference_id' => $row['reference_id'],
+                'invoice_number' => $row['invoice_number'],
+                'invoice_total' => $row['invoice_total'] ? floatval($row['invoice_total']) : null,
+                'running_balance' => $running_balance,
+                'days_outstanding' => $days_outstanding ? intval($days_outstanding) : null,
+                'created_by_name' => $row['created_by_name']
+            ];
+        }
+        
+        // Calculate aging
+        $aging_result = mysqli_query($this->conn, 
+            "SELECT 
+                SUM(CASE WHEN transaction_date >= DATE_SUB('$end_esc', INTERVAL 30 DAY) THEN amount ELSE 0 END) as current,
+                SUM(CASE WHEN transaction_date >= DATE_SUB('$end_esc', INTERVAL 60 DAY) 
+                         AND transaction_date < DATE_SUB('$end_esc', INTERVAL 30 DAY) THEN amount ELSE 0 END) as days_30_60,
+                SUM(CASE WHEN transaction_date >= DATE_SUB('$end_esc', INTERVAL 90 DAY) 
+                         AND transaction_date < DATE_SUB('$end_esc', INTERVAL 60 DAY) THEN amount ELSE 0 END) as days_60_90,
+                SUM(CASE WHEN transaction_date < DATE_SUB('$end_esc', INTERVAL 90 DAY) THEN amount ELSE 0 END) as over_90
+             FROM ar_transactions
+             WHERE customer_id = $customer_id AND type = 'invoice' AND is_deleted = 0
+             AND transaction_date <= '$end_esc'");
+        
+        $aging = mysqli_fetch_assoc($aging_result);
+        
+        $this->successResponse([
+            'customer' => $customer,
+            'period' => [
+                'start_date' => $start_date,
+                'end_date' => $end_date
+            ],
+            'opening_balance' => $opening_balance,
+            'closing_balance' => $running_balance,
+            'transactions' => $transactions,
+            'aging' => [
+                'current' => floatval($aging['current'] ?? 0),
+                'days_30_60' => floatval($aging['days_30_60'] ?? 0),
+                'days_60_90' => floatval($aging['days_60_90'] ?? 0),
+                'over_90' => floatval($aging['over_90'] ?? 0),
+                'total' => floatval($customer['current_balance'])
+            ]
+        ]);
     }
 }

@@ -32,6 +32,8 @@ const icons = {
     '<svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>',
   building:
     '<svg class="icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="18"></line><line x1="13" y1="22" x2="13" y2="18"></line><line x1="17" y1="22" x2="17" y2="18"></line></svg>',
+  lock: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
+  unlock: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.33-2.22"></path></svg>',
 };
 
 function getIcon(name) {
@@ -147,12 +149,20 @@ function setupSidebar(user) {
     { href: "expenses.html", icon: "dollar", text: "المصروفات" },
     { href: "revenues.html", icon: "plus", text: "الإيرادات الإضافية" },
     { href: "assets.html", icon: "building", text: "الأصول" },
+    { href: "general_ledger.html", icon: "dollar", text: "دفتر الأستاذ العام" },
+    { href: "journal_vouchers.html", icon: "edit", text: "سندات القيد" },
+    { href: "reconciliation.html", icon: "check", text: "التسوية البنكية" },
+    { href: "accrual_accounting.html", icon: "dollar", text: "المحاسبة الاستحقاقية" },
+    { href: "recurring_transactions.html", icon: "check", text: "المعاملات المتكررة" },
+    { href: "chart_of_accounts.html", icon: "box", text: "دليل الحسابات" },
     { href: "reports.html", icon: "eye", text: "الميزانية والتقارير" },
   ];
 
   const adminLinks = [
     { href: "users.html", icon: "users", text: "إدارة المستخدمين" },
     { href: "settings.html", icon: "settings", text: "الإعدادات" },
+    { href: "audit_trail.html", icon: "eye", text: "سجل التدقيق" },
+    { href: "fiscal_periods.html", icon: "dollar", text: "الفترات المالية" },
   ];
 
   let links = [...commonLinks];

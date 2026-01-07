@@ -86,78 +86,134 @@ The Supermarket Management System is a full-featured retail business management 
 
 ### 5. Purchase Management
 
-**Purpose**: Stock replenishment and price management
+**Purpose**: Stock replenishment and price management with Accounts Payable
 
 **Features**:
 
 - Purchase recording with cost tracking
 - Unit type selection (main/sub units)
+- **INV-002**: Moving Weighted Average Cost (MWAC) calculation
 - Automatic selling price calculation (cost + margin)
 - Production and expiry date tracking
 - Purchase request workflow (staff → manager approval)
+- **ALM-002**: Accounts Payable integration for credit purchases
+- **TAX-001**: VAT tracking (Input VAT)
 
 **Implementation**:
+
+- `purchases` table with supplier_id and VAT fields
+- `ap_suppliers` and `ap_transactions` tables
+- `inventory_costing` table for COGS tracking
+- Posts to General Ledger with double-entry accounting
 
 - `purchases` table - Purchase history
 - `purchase_requests` table - Procurement workflow
 - `PurchasesController` handles purchases and requests
 - Stock and price updates in transactions
 
-### 6. Financial Management
+### 6. Financial Management & Accounting
 
-**Purpose**: Business accounting beyond retail operations
+**Purpose**: Professional double-entry accounting system
 
 **Modules**:
 
-#### A. Expenses
+#### A. Chart of Accounts (FIN-003)
 
-- Categorized expense recording
-- Date tracking and descriptions
-- User attribution
+- Hierarchical account structure
+- Account types: Asset, Liability, Equity, Revenue, Expense
+- Dynamic account management
+- Replaces hardcoded categories
 
-#### B. Assets  
+#### B. General Ledger (FIN-001, FIN-002)
+
+- Central double-entry accounting ledger
+- All financial transactions post to GL
+- Balanced debit/credit entries
+- Voucher number tracking (TAX-002)
+- Fiscal period integration
+
+#### C. Expenses (FIN-003)
+
+- **FIN-003**: Chart of Accounts integration
+- Account code validation
+- Posts to General Ledger automatically
+- Voucher number generation
+
+#### D. Assets (ALM-003)
 
 - Fixed asset registry
-- Value and depreciation rate tracking
-- Status management (active/disposed)
+- **ALM-003**: Automated depreciation calculation
+- Monthly depreciation journal entries
+- Book value tracking
+- Posts to General Ledger
 
-#### C. Revenues
+#### E. Revenues
 
 - Direct cash revenue recording
 - Non-POS income sources
-- Source and description tracking
+- Posts to General Ledger
+- Chart of Accounts integration
+
+#### F. Accounts Payable (ALM-002)
+
+- Supplier relationship management
+- Credit purchase tracking
+- Payment scheduling
+- Balance reconciliation
+
+#### G. Fiscal Periods (FIN-004)
+
+- Period creation and management
+- Period closing with retained earnings transfer
+- Locked period entries (audit integrity)
 
 **Implementation**:
 
-- `expenses`, `assets`, `revenues` tables
-- Dedicated controllers for each module
-- Integration with balance sheet reporting
+- `chart_of_accounts`, `general_ledger`, `fiscal_periods` tables
+- `expenses`, `assets`, `revenues` tables with GL integration
+- `ap_suppliers`, `ap_transactions` tables
+- `LedgerService` for double-entry posting
+- `DepreciationService` for automated depreciation
 
 ### 7. Reporting & Analytics
 
-**Purpose**: Financial statement generation
+**Purpose**: Professional financial statement generation
 
 **Reports**:
 
-#### Balance Sheet
+#### Balance Sheet (ALM-001 Fix)
 
-- **Assets**:
-  - Cash estimate (revenues - expenses - purchases)
-  - Inventory value (stock × unit price)
-  - Fixed assets value
-  - Accounts receivable
-- **Income Statement**:
-  - Total sales
-  - Other revenues
-  - Total purchases (COGS)
-  - Total expenses
-  - Net profit
+- **Assets** (from General Ledger):
+  - Cash (GL account 1110) - **ALM-001**: Excludes credit sales
+  - Accounts Receivable (GL account 1120)
+  - Inventory (from inventory_costing - unsold at cost)
+  - Fixed Assets (book value after depreciation)
+- **Liabilities** (from General Ledger):
+  - Accounts Payable (GL account 2110)
+  - VAT Liability (Output VAT - Input VAT)
+- **Equity** (from General Ledger):
+  - Capital (GL account 3100)
+  - Retained Earnings (GL account 3200)
+  - Current Period Profit
+- **Accounting Equation Verification**: Assets = Liabilities + Equity
+
+#### Income Statement (from General Ledger)
+
+- **Revenue**:
+  - Sales Revenue (GL account 4100)
+  - Other Revenues (GL account 4200)
+- **Expenses**:
+  - Cost of Goods Sold (GL account 5100) - **INV-001**: Calculated on sale
+  - Operating Expenses (GL account 5200)
+  - Depreciation Expense (GL account 5300)
+- **Net Profit**: Revenue - Expenses
 
 **Implementation**:
 
 - `ReportsController.getBalanceSheet()`
-- Real-time calculation from transaction tables
-- No pre-aggregated balances
+- All calculations from General Ledger (double-entry)
+- Real-time account balances
+- Trial balance verification
 
 ### 8. Dashboard & KPIs
 
@@ -219,23 +275,32 @@ The Supermarket Management System is a full-featured retail business management 
 1. **Frontend**: User selects products, quantities, payment type
 2. **SalesController**:
    - Validates stock availability
-   - Creates invoice record
+   - **INV-001**: Calculates COGS using FIFO method
+   - Creates invoice record with voucher number
    - Inserts invoice items
    - Deducts stock quantities
+   - **FIN-002**: Posts to General Ledger:
+     - Cash/AR (Debit), Sales Revenue (Credit), Output VAT (Credit)
+     - COGS (Debit), Inventory (Credit)
    - If credit: Creates AR transaction, updates customer balance
 3. **Telescope**: Logs operation
-4. **Response**: Returns invoice ID and number
+4. **Response**: Returns invoice ID, number, and voucher number
 
 ### Purchase Transaction Flow
 
-1. **Frontend**: User enters product, quantity, cost, unit type
+1. **Frontend**: User enters product, quantity, cost, unit type, supplier
 2. **PurchasesController**:
    - Calculates actual quantity (main → sub conversion)
-   - Calculates new selling price (cost + margin)
-   - Inserts purchase record
-   - Updates stock and unit price
+   - **INV-002**: Calculates Moving Weighted Average Cost (MWAC)
+   - Calculates new selling price (MWAC + margin)
+   - Inserts purchase record with voucher number
+   - Records in inventory_costing table
+   - Updates stock and weighted_average_cost
+   - **FIN-002**: Posts to General Ledger:
+     - Inventory (Debit), Cash/AP (Credit), Input VAT (Debit)
+   - If credit purchase: Creates AP transaction, updates supplier balance
 3. **Telescope**: Logs operation
-4. **Response**: Returns new unit price
+4. **Response**: Returns new unit price, MWAC, and voucher number
 
 ### AR Payment Flow
 

@@ -557,7 +557,35 @@ PUT /api.php?action=ar_ledger
 
 **Data Fields**:
 
-- `category`, `amount`, `expense_date`, `description`
+- `category`: Text description (e.g., "Rent", "Utilities")
+- `account_code`: Chart of Accounts code (default: '5200' - Operating Expenses)
+- `amount`: Expense amount
+- `expense_date`: Date of expense
+- `description`: Additional details
+
+**Create Request**:
+
+```json
+{
+  "category": "Rent",
+  "account_code": "5210",
+  "amount": 1000.00,
+  "expense_date": "2026-01-06",
+  "description": "Monthly office rent"
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "id": 123,
+  "voucher_number": "EXP-000001"
+}
+```
+
+**Note**: Account code must exist in Chart of Accounts and be of type 'Expense'
 
 #### Assets
 
@@ -568,6 +596,40 @@ PUT /api.php?action=ar_ledger
 **Data Fields**:
 
 - `name`, `value`, `purchase_date`, `depreciation_rate`, `status`, `description`
+
+**Calculate Depreciation**:
+
+```http
+POST /api.php?action=assets&action=calculate_depreciation
+```
+
+**Request** (optional):
+
+```json
+{
+  "fiscal_period_id": 1
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "message": "Depreciation calculated successfully",
+  "depreciations": [
+    {
+      "asset_id": 1,
+      "asset_name": "Office Equipment",
+      "depreciation_amount": 83.33,
+      "book_value": 916.67
+    }
+  ],
+  "count": 1
+}
+```
+
+**Note**: Calculates monthly depreciation for all active assets with depreciation_rate > 0
 
 #### Revenues
 
@@ -592,22 +654,48 @@ GET /api.php?action=balance_sheet
   "success": true,
   "data": {
     "assets": {
+      "cash": 5000.00,
       "cash_estimate": 5000.00,
+      "accounts_receivable": 3000.00,
+      "inventory": 12000.00,
       "stock_value": 12000.00,
       "fixed_assets": 8000.00,
-      "accounts_receivable": 3000.00,
       "total_assets": 28000.00
+    },
+    "liabilities": {
+      "accounts_payable": 2000.00,
+      "vat_liability": 500.00,
+      "total_liabilities": 2500.00
+    },
+    "equity": {
+      "capital": 10000.00,
+      "retained_earnings": 5000.00,
+      "current_profit": 10500.00,
+      "total_equity": 25500.00
     },
     "income_statement": {
       "total_sales": 50000.00,
+      "sales_revenue": 50000.00,
       "other_revenues": 2000.00,
-      "total_purchases": 30000.00,
-      "total_expenses": 17000.00,
-      "net_profit": 5000.00
+      "total_revenue": 52000.00,
+      "total_purchases": 0,
+      "cost_of_goods_sold": 30000.00,
+      "operating_expenses": 10000.00,
+      "depreciation_expense": 2000.00,
+      "total_expenses": 42000.00,
+      "net_profit": 10000.00
+    },
+    "accounting_equation": {
+      "assets": 28000.00,
+      "liabilities_plus_equity": 28000.00,
+      "difference": 0.00,
+      "is_balanced": true
     }
   }
 }
 ```
+
+**Note**: All values calculated from General Ledger (double-entry accounting). Cash excludes credit sales (ALM-001 fix).
 
 ### Users
 
@@ -762,6 +850,123 @@ POST /api.php?action=settings
 ```
 
 **Request**: Object with setting key-value pairs
+
+### Chart of Accounts
+
+**FIN-003**: Dynamic account management
+
+**List Accounts**:
+
+```http
+GET /api.php?action=chart_of_accounts&type=Expense&parent_id=5200
+```
+
+**Query Parameters**:
+
+- `type`: Filter by account type (Asset, Liability, Equity, Revenue, Expense)
+- `parent_id`: Filter by parent account (0 for root accounts)
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "account_code": "5210",
+      "account_name": "إيجار",
+      "account_type": "Expense",
+      "parent_id": 5200,
+      "is_active": 1,
+      "child_count": 0
+    }
+  ]
+}
+```
+
+**Create Account**:
+
+```http
+POST /api.php?action=chart_of_accounts
+```
+
+**Request**:
+
+```json
+{
+  "account_code": "5210",
+  "account_name": "Rent",
+  "account_type": "Expense",
+  "parent_id": 5200,
+  "description": "Office rent expenses"
+}
+```
+
+**Update Account**:
+
+```http
+PUT /api.php?action=chart_of_accounts
+```
+
+**Delete Account**:
+
+```http
+DELETE /api.php?action=chart_of_accounts&id=123
+```
+
+**Note**: Accounts with GL entries are soft-deleted (deactivated) rather than hard-deleted.
+
+### Fiscal Periods
+
+**FIN-004**: Period management and closing
+
+**List Periods**:
+
+```http
+GET /api.php?action=fiscal_periods
+```
+
+**Create Period**:
+
+```http
+POST /api.php?action=fiscal_periods
+```
+
+**Request**:
+
+```json
+{
+  "period_name": "January 2026",
+  "start_date": "2026-01-01",
+  "end_date": "2026-01-31"
+}
+```
+
+**Close Period**:
+
+```http
+PUT /api.php?action=fiscal_periods
+```
+
+**Request**:
+
+```json
+{
+  "id": 1
+}
+```
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "net_income": 10000.00
+}
+```
+
+**Note**: Closing a period locks all GL entries and transfers net income to Retained Earnings.
 
 ### Categories
 

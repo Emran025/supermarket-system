@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>المحاسبة الاستحقاقية - نظام إدارة السوبر ماركت</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      .ledger-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 0;
+      }
+      .ledger-tab {
+        padding: 0.75rem 1.5rem;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+      }
+      .ledger-tab i {
+        font-size: 1rem;
+      }
+      .ledger-tab.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        background: var(--primary-subtle);
+      }
+      .ledger-tab:hover {
+        color: var(--primary-color);
+        background: var(--surface-hover);
+      }
+      .tab-content {
+        margin-top: 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <img
+            src="assets/images/logo.svg"
+            alt="Market Logo"
+            class="logo-img"
+          />
+          <h2>السوبر ماركت</h2>
+        </div>
+        <div class="sidebar-nav">
+          <!-- Links will be injected by common.js -->
+        </div>
+      </aside>
+
+      <main class="content animate-fade">
+        <div class="page-header">
+          <h1>المحاسبة الاستحقاقية</h1>
+          <div class="header-actions">
+            <button class="btn btn-primary" onclick="showCreateModal()">
+              <i class="fas fa-plus"></i> إضافة قيد
+            </button>
+            <span id="current-date" class="stat-label"></span>
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                border-right: 1px solid var(--border-color);
+                padding-right: 1rem;
+                margin-right: 1rem;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span
+                id="userRoleBadge"
+                class="badge"
+                style="display: none"
+              ></span>
+            </div>
+          </div>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <div class="ledger-tabs">
+          <button class="ledger-tab active" onclick="switchTab('payroll')">
+            <i class="fas fa-users"></i> كشوف المرتبات
+          </button>
+          <button class="ledger-tab" onclick="switchTab('prepayments')">
+            <i class="fas fa-calendar"></i> المدفوعات المقدمة
+          </button>
+          <button class="ledger-tab" onclick="switchTab('unearned')">
+            <i class="fas fa-dollar-sign"></i> الإيرادات غير المكتسبة
+          </button>
+        </div>
+
+        <!-- Payroll Tab -->
+        <div id="tab-payroll" class="tab-content">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>إجمالي الراتب</th>
+                  <th>الخصومات</th>
+                  <th>صافي الراتب</th>
+                  <th>الوصف</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="payroll-table-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="payroll-pagination"></div>
+        </div>
+
+        <!-- Prepayments Tab -->
+        <div id="tab-prepayments" class="tab-content" style="display: none">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>المبلغ الإجمالي</th>
+                  <th>عدد الأشهر</th>
+                  <th>الوصف</th>
+                  <th>حساب المصروف</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="prepayments-table-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="prepayments-pagination"></div>
+        </div>
+
+        <!-- Unearned Revenue Tab -->
+        <div id="tab-unearned" class="tab-content" style="display: none">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>المبلغ الإجمالي</th>
+                  <th>عدد الأشهر</th>
+                  <th>الوصف</th>
+                  <th>حساب الإيراد</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="unearned-table-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="unearned-pagination"></div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Create Modal -->
+    <div id="accrual-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title">إضافة قيد استحقاقي</h2>
+          <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="accrual-form">
+            <input type="hidden" id="accrual-type" />
+            <input type="hidden" id="accrual-id" />
+            
+            <!-- Payroll Fields -->
+            <div id="payroll-fields" style="display: none">
+              <div class="form-group">
+                <label>تاريخ الراتب *</label>
+                <input type="date" id="payroll-date" class="form-input" required />
+              </div>
+              <div class="form-group">
+                <label>إجمالي الراتب *</label>
+                <input type="number" id="gross-pay" class="form-input" step="0.01" min="0" required />
+              </div>
+              <div class="form-group">
+                <label>الخصومات</label>
+                <input type="number" id="deductions" class="form-input" step="0.01" min="0" value="0" />
+              </div>
+              <div class="form-group">
+                <label>الوصف</label>
+                <textarea id="payroll-description" class="form-input" rows="2">كشف مرتب شهري</textarea>
+              </div>
+            </div>
+
+            <!-- Prepayment Fields -->
+            <div id="prepayment-fields" style="display: none">
+              <div class="form-group">
+                <label>تاريخ الدفع *</label>
+                <input type="date" id="prepayment-date" class="form-input" required />
+              </div>
+              <div class="form-group">
+                <label>المبلغ الإجمالي *</label>
+                <input type="number" id="prepayment-amount" class="form-input" step="0.01" min="0" required />
+              </div>
+              <div class="form-group">
+                <label>عدد الأشهر *</label>
+                <input type="number" id="prepayment-months" class="form-input" min="1" value="1" required />
+              </div>
+              <div class="form-group">
+                <label>حساب المصروف</label>
+                <input type="text" id="prepayment-expense-account" class="form-input" placeholder="رمز الحساب (اختياري)" />
+              </div>
+              <div class="form-group">
+                <label>الوصف *</label>
+                <textarea id="prepayment-description" class="form-input" rows="2" required></textarea>
+              </div>
+            </div>
+
+            <!-- Unearned Revenue Fields -->
+            <div id="unearned-fields" style="display: none">
+              <div class="form-group">
+                <label>تاريخ الاستلام *</label>
+                <input type="date" id="unearned-date" class="form-input" required />
+              </div>
+              <div class="form-group">
+                <label>المبلغ الإجمالي *</label>
+                <input type="number" id="unearned-amount" class="form-input" step="0.01" min="0" required />
+              </div>
+              <div class="form-group">
+                <label>عدد الأشهر *</label>
+                <input type="number" id="unearned-months" class="form-input" min="1" value="1" required />
+              </div>
+              <div class="form-group">
+                <label>حساب الإيراد</label>
+                <input type="text" id="unearned-revenue-account" class="form-input" placeholder="رمز الحساب (اختياري)" />
+              </div>
+              <div class="form-group">
+                <label>الوصف *</label>
+                <textarea id="unearned-description" class="form-input" rows="2" required></textarea>
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                إلغاء
+              </button>
+              <button type="submit" class="btn btn-primary">
+                حفظ
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="common.js"></script>
+    <script src="accrual_accounting.js"></script>
+  </body>
+</html>
+

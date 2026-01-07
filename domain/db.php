@@ -298,18 +298,27 @@ function init_database() {
     $expenses_sql = "CREATE TABLE IF NOT EXISTS expenses (
         id INT AUTO_INCREMENT PRIMARY KEY,
         category VARCHAR(100) NOT NULL,
+        account_code VARCHAR(20) DEFAULT NULL COMMENT 'Chart of Accounts code',
         amount DECIMAL(10, 2) NOT NULL,
         expense_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         description TEXT,
         user_id INT DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_account_code (account_code)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     
     if (!mysqli_query($conn, $expenses_sql)) {
         error_log("Failed to create expenses table: " . mysqli_error($conn));
         throw new Exception("Failed to create expenses table: " . mysqli_error($conn));
+    }
+    
+    // Add account_code column to expenses if it doesn't exist (migration)
+    $check_exp_account = mysqli_query($conn, "SHOW COLUMNS FROM expenses LIKE 'account_code'");
+    if ($check_exp_account && $check_exp_account instanceof mysqli_result && mysqli_num_rows($check_exp_account) == 0) {
+        mysqli_query($conn, "ALTER TABLE expenses ADD COLUMN account_code VARCHAR(20) DEFAULT NULL COMMENT 'Chart of Accounts code'");
+        mysqli_query($conn, "ALTER TABLE expenses ADD INDEX idx_account_code (account_code)");
     }
 
     // Assets table
@@ -350,6 +359,491 @@ function init_database() {
         throw new Exception("Failed to create revenues table: " . mysqli_error($conn));
     }
 
+    // Chart of Accounts (COA) table
+    $coa_sql = "CREATE TABLE IF NOT EXISTS chart_of_accounts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        account_code VARCHAR(20) UNIQUE NOT NULL,
+        account_name VARCHAR(255) NOT NULL,
+        account_type VARCHAR(50) NOT NULL COMMENT 'Asset, Liability, Equity, Revenue, Expense',
+        parent_id INT DEFAULT NULL,
+        is_active TINYINT(1) DEFAULT 1,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (parent_id) REFERENCES chart_of_accounts(id) ON DELETE SET NULL,
+        INDEX idx_account_type (account_type),
+        INDEX idx_parent_id (parent_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $coa_sql)) {
+        error_log("Failed to create chart_of_accounts table: " . mysqli_error($conn));
+        throw new Exception("Failed to create chart_of_accounts table: " . mysqli_error($conn));
+    }
+
+    // General Ledger (GL) table - Double-entry accounting
+    $gl_sql = "CREATE TABLE IF NOT EXISTS general_ledger (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        voucher_number VARCHAR(50) NOT NULL,
+        voucher_date DATE NOT NULL,
+        account_id INT NOT NULL,
+        entry_type VARCHAR(10) NOT NULL COMMENT 'DEBIT or CREDIT',
+        amount DECIMAL(15, 2) NOT NULL,
+        description TEXT,
+        reference_type VARCHAR(50) DEFAULT NULL COMMENT 'table name e.g. invoices, purchases',
+        reference_id INT DEFAULT NULL COMMENT 'record id in reference table',
+        fiscal_period_id INT DEFAULT NULL,
+        is_closed TINYINT(1) DEFAULT 0,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id) ON DELETE RESTRICT,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_voucher_number (voucher_number),
+        INDEX idx_voucher_date (voucher_date),
+        INDEX idx_account_id (account_id),
+        INDEX idx_fiscal_period (fiscal_period_id),
+        INDEX idx_reference (reference_type, reference_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $gl_sql)) {
+        error_log("Failed to create general_ledger table: " . mysqli_error($conn));
+        throw new Exception("Failed to create general_ledger table: " . mysqli_error($conn));
+    }
+
+    // Fiscal Periods table
+    $fiscal_periods_sql = "CREATE TABLE IF NOT EXISTS fiscal_periods (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        period_name VARCHAR(100) NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        is_closed TINYINT(1) DEFAULT 0,
+        is_locked TINYINT(1) DEFAULT 0,
+        closed_at TIMESTAMP NULL,
+        closed_by INT DEFAULT NULL,
+        locked_at DATETIME DEFAULT NULL,
+        locked_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (closed_by) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (locked_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_dates (start_date, end_date),
+        INDEX idx_closed (is_closed),
+        INDEX idx_locked (is_locked)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $fiscal_periods_sql)) {
+        error_log("Failed to create fiscal_periods table: " . mysqli_error($conn));
+        throw new Exception("Failed to create fiscal_periods table: " . mysqli_error($conn));
+    }
+    
+    // Add period locking columns if not exist
+    $check_period_locked = mysqli_query($conn, "SHOW COLUMNS FROM fiscal_periods LIKE 'is_locked'");
+    if ($check_period_locked && $check_period_locked instanceof mysqli_result && mysqli_num_rows($check_period_locked) == 0) {
+        mysqli_query($conn, "ALTER TABLE fiscal_periods ADD COLUMN is_locked TINYINT(1) DEFAULT 0");
+        mysqli_query($conn, "ALTER TABLE fiscal_periods ADD COLUMN locked_at DATETIME DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE fiscal_periods ADD COLUMN locked_by INT DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE fiscal_periods ADD CONSTRAINT fk_fiscal_periods_locked_by FOREIGN KEY (locked_by) REFERENCES users(id) ON DELETE SET NULL");
+        mysqli_query($conn, "ALTER TABLE fiscal_periods ADD INDEX idx_locked (is_locked)");
+    }
+
+    // Accounts Payable (AP) Suppliers table
+    $ap_suppliers_sql = "CREATE TABLE IF NOT EXISTS ap_suppliers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        address TEXT,
+        tax_number VARCHAR(50),
+        credit_limit DECIMAL(15, 2) DEFAULT 0.00,
+        payment_terms INT DEFAULT 30 COMMENT 'Days',
+        current_balance DECIMAL(15, 2) DEFAULT 0.00,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $ap_suppliers_sql)) {
+        error_log("Failed to create ap_suppliers table: " . mysqli_error($conn));
+        throw new Exception("Failed to create ap_suppliers table: " . mysqli_error($conn));
+    }
+
+    // Accounts Payable Transactions table
+    $ap_transactions_sql = "CREATE TABLE IF NOT EXISTS ap_transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        supplier_id INT NOT NULL,
+        type VARCHAR(20) NOT NULL COMMENT 'invoice, payment, return',
+        amount DECIMAL(15, 2) NOT NULL,
+        description TEXT,
+        reference_type VARCHAR(50) DEFAULT NULL COMMENT 'table name e.g. purchases',
+        reference_id INT DEFAULT NULL COMMENT 'record id in reference table',
+        transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_by INT DEFAULT NULL,
+        is_deleted TINYINT(1) DEFAULT 0,
+        deleted_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (supplier_id) REFERENCES ap_suppliers(id) ON DELETE CASCADE,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_supplier (supplier_id),
+        INDEX idx_reference (reference_type, reference_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $ap_transactions_sql)) {
+        error_log("Failed to create ap_transactions table: " . mysqli_error($conn));
+        throw new Exception("Failed to create ap_transactions table: " . mysqli_error($conn));
+    }
+
+    // Inventory Costing table (for COGS tracking)
+    $inventory_costing_sql = "CREATE TABLE IF NOT EXISTS inventory_costing (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        product_id INT NOT NULL,
+        purchase_id INT DEFAULT NULL,
+        quantity INT NOT NULL,
+        unit_cost DECIMAL(10, 2) NOT NULL,
+        total_cost DECIMAL(15, 2) NOT NULL,
+        costing_method VARCHAR(20) DEFAULT 'FIFO' COMMENT 'FIFO, WEIGHTED_AVG',
+        transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reference_type VARCHAR(50) DEFAULT NULL COMMENT 'purchases, sales',
+        reference_id INT DEFAULT NULL,
+        is_sold TINYINT(1) DEFAULT 0,
+        sold_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE SET NULL,
+        INDEX idx_product (product_id),
+        INDEX idx_unsold (product_id, is_sold),
+        INDEX idx_reference (reference_type, reference_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $inventory_costing_sql)) {
+        error_log("Failed to create inventory_costing table: " . mysqli_error($conn));
+        throw new Exception("Failed to create inventory_costing table: " . mysqli_error($conn));
+    }
+
+    // Asset Depreciation table
+    $asset_depreciation_sql = "CREATE TABLE IF NOT EXISTS asset_depreciation (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        asset_id INT NOT NULL,
+        depreciation_date DATE NOT NULL,
+        depreciation_amount DECIMAL(15, 2) NOT NULL,
+        accumulated_depreciation DECIMAL(15, 2) NOT NULL,
+        book_value DECIMAL(15, 2) NOT NULL,
+        fiscal_period_id INT DEFAULT NULL,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+        FOREIGN KEY (fiscal_period_id) REFERENCES fiscal_periods(id) ON DELETE SET NULL,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_asset (asset_id),
+        INDEX idx_date (depreciation_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $asset_depreciation_sql)) {
+        error_log("Failed to create asset_depreciation table: " . mysqli_error($conn));
+        throw new Exception("Failed to create asset_depreciation table: " . mysqli_error($conn));
+    }
+
+    // Document Sequences table (for voucher numbering)
+    $document_sequences_sql = "CREATE TABLE IF NOT EXISTS document_sequences (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        document_type VARCHAR(50) UNIQUE NOT NULL COMMENT 'INV, PUR, EXP, REV, etc.',
+        prefix VARCHAR(10) DEFAULT '',
+        current_number INT DEFAULT 0,
+        format VARCHAR(50) DEFAULT '{PREFIX}-{NUMBER}',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $document_sequences_sql)) {
+        error_log("Failed to create document_sequences table: " . mysqli_error($conn));
+        throw new Exception("Failed to create document_sequences table: " . mysqli_error($conn));
+    }
+
+    // Reconciliations table (for cash/bank reconciliation)
+    $reconciliations_sql = "CREATE TABLE IF NOT EXISTS reconciliations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        account_code VARCHAR(20) NOT NULL,
+        reconciliation_date DATE NOT NULL,
+        ledger_balance DECIMAL(15, 2) NOT NULL,
+        physical_balance DECIMAL(15, 2) NOT NULL,
+        difference DECIMAL(15, 2) NOT NULL,
+        status VARCHAR(20) DEFAULT 'unreconciled' COMMENT 'reconciled, unreconciled, adjusted',
+        notes TEXT,
+        adjustment_notes TEXT,
+        reconciled_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (reconciled_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_account (account_code),
+        INDEX idx_date (reconciliation_date),
+        INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $reconciliations_sql)) {
+        error_log("Failed to create reconciliations table: " . mysqli_error($conn));
+        throw new Exception("Failed to create reconciliations table: " . mysqli_error($conn));
+    }
+
+    // Journal Vouchers table (for manual journal entries)
+    $journal_vouchers_sql = "CREATE TABLE IF NOT EXISTS journal_vouchers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        voucher_number VARCHAR(50) NOT NULL,
+        voucher_date DATE NOT NULL,
+        account_id INT NOT NULL,
+        entry_type VARCHAR(10) NOT NULL COMMENT 'DEBIT or CREDIT',
+        amount DECIMAL(15, 2) NOT NULL,
+        description TEXT,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id) ON DELETE RESTRICT,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_voucher (voucher_number),
+        INDEX idx_date (voucher_date),
+        INDEX idx_account (account_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $journal_vouchers_sql)) {
+        error_log("Failed to create journal_vouchers table: " . mysqli_error($conn));
+        throw new Exception("Failed to create journal_vouchers table: " . mysqli_error($conn));
+    }
+
+    // Accrual Accounting Tables
+    
+    // Payroll Entries table
+    $payroll_sql = "CREATE TABLE IF NOT EXISTS payroll_entries (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_name VARCHAR(255) NOT NULL,
+        salary_amount DECIMAL(15, 2) NOT NULL,
+        payroll_date DATE NOT NULL,
+        description TEXT,
+        status VARCHAR(20) DEFAULT 'accrued' COMMENT 'accrued, paid',
+        payment_date DATE DEFAULT NULL,
+        paid_at DATETIME DEFAULT NULL,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_date (payroll_date),
+        INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $payroll_sql)) {
+        error_log("Failed to create payroll_entries table: " . mysqli_error($conn));
+        throw new Exception("Failed to create payroll_entries table: " . mysqli_error($conn));
+    }
+
+    // Prepayments table
+    $prepayments_sql = "CREATE TABLE IF NOT EXISTS prepayments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        description VARCHAR(255) NOT NULL,
+        total_amount DECIMAL(15, 2) NOT NULL,
+        payment_date DATE NOT NULL,
+        expense_account_code VARCHAR(20) NOT NULL,
+        amortization_periods INT DEFAULT 1,
+        amortized_amount DECIMAL(15, 2) DEFAULT 0.00,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_date (payment_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $prepayments_sql)) {
+        error_log("Failed to create prepayments table: " . mysqli_error($conn));
+        throw new Exception("Failed to create prepayments table: " . mysqli_error($conn));
+    }
+
+    // Unearned Revenue table
+    $unearned_revenue_sql = "CREATE TABLE IF NOT EXISTS unearned_revenue (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        description VARCHAR(255) NOT NULL,
+        total_amount DECIMAL(15, 2) NOT NULL,
+        received_date DATE NOT NULL,
+        revenue_account_code VARCHAR(20) NOT NULL,
+        recognized_amount DECIMAL(15, 2) DEFAULT 0.00,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_date (received_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $unearned_revenue_sql)) {
+        error_log("Failed to create unearned_revenue table: " . mysqli_error($conn));
+        throw new Exception("Failed to create unearned_revenue table: " . mysqli_error($conn));
+    }
+
+    // Periodic Inventory Counts table
+    $inventory_counts_sql = "CREATE TABLE IF NOT EXISTS inventory_counts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        product_id INT NOT NULL,
+        fiscal_period_id INT NOT NULL,
+        count_date DATE NOT NULL,
+        book_quantity INT NOT NULL COMMENT 'Quantity from perpetual system',
+        counted_quantity INT NOT NULL COMMENT 'Physical count',
+        variance INT NOT NULL COMMENT 'counted - book',
+        notes TEXT,
+        is_processed TINYINT(1) DEFAULT 0,
+        processed_at DATETIME DEFAULT NULL,
+        counted_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY (fiscal_period_id) REFERENCES fiscal_periods(id) ON DELETE RESTRICT,
+        FOREIGN KEY (counted_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_period (fiscal_period_id),
+        INDEX idx_product (product_id),
+        INDEX idx_processed (is_processed)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $inventory_counts_sql)) {
+        error_log("Failed to create inventory_counts table: " . mysqli_error($conn));
+        throw new Exception("Failed to create inventory_counts table: " . mysqli_error($conn));
+    }
+    
+    // Add inventory method setting
+    $check_inv_method = mysqli_query($conn, "SELECT COUNT(*) as count FROM settings WHERE setting_key = 'inventory_method'");
+    $inv_method_row = mysqli_fetch_assoc($check_inv_method);
+    if ($inv_method_row['count'] == 0) {
+        mysqli_query($conn, "INSERT INTO settings (setting_key, setting_value) VALUES ('inventory_method', 'perpetual')");
+    }
+
+    // ZATCA E-Invoices table
+    $zatca_einvoices_sql = "CREATE TABLE IF NOT EXISTS zatca_einvoices (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        invoice_id INT NOT NULL,
+        xml_content TEXT NOT NULL,
+        hash VARCHAR(64) NOT NULL,
+        signed_xml TEXT DEFAULT NULL,
+        qr_code VARCHAR(255) DEFAULT NULL,
+        zatca_uuid VARCHAR(255) DEFAULT NULL,
+        zatca_qr_code TEXT DEFAULT NULL,
+        status VARCHAR(20) DEFAULT 'generated' COMMENT 'generated, signed, submitted, rejected',
+        signed_at DATETIME DEFAULT NULL,
+        submitted_at DATETIME DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_invoice (invoice_id),
+        INDEX idx_status (status),
+        INDEX idx_hash (hash)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $zatca_einvoices_sql)) {
+        error_log("Failed to create zatca_einvoices table: " . mysqli_error($conn));
+        throw new Exception("Failed to create zatca_einvoices table: " . mysqli_error($conn));
+    }
+
+    // Recurring Transactions table
+    $recurring_transactions_sql = "CREATE TABLE IF NOT EXISTS recurring_transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        description VARCHAR(255) NOT NULL,
+        debit_account_code VARCHAR(20) NOT NULL,
+        credit_account_code VARCHAR(20) NOT NULL,
+        amount DECIMAL(15, 2) NOT NULL,
+        frequency VARCHAR(20) DEFAULT 'monthly' COMMENT 'daily, weekly, monthly, quarterly, yearly',
+        start_date DATE NOT NULL,
+        end_date DATE DEFAULT NULL,
+        next_due_date DATE NOT NULL,
+        last_processed_date DATE DEFAULT NULL,
+        auto_process TINYINT(1) DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'active' COMMENT 'active, paused, completed',
+        processed_count INT DEFAULT 0,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_status (status),
+        INDEX idx_next_due (next_due_date),
+        INDEX idx_auto_process (auto_process)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $recurring_transactions_sql)) {
+        error_log("Failed to create recurring_transactions table: " . mysqli_error($conn));
+        throw new Exception("Failed to create recurring_transactions table: " . mysqli_error($conn));
+    }
+
+    // Batch Processing table
+    $batch_processing_sql = "CREATE TABLE IF NOT EXISTS batch_processing (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        batch_type VARCHAR(50) NOT NULL COMMENT 'journal_entries, expenses, etc.',
+        description VARCHAR(255) NOT NULL,
+        status VARCHAR(20) DEFAULT 'processing' COMMENT 'processing, completed, partial, failed',
+        total_items INT NOT NULL,
+        successful_items INT DEFAULT 0,
+        failed_items INT DEFAULT 0,
+        created_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at DATETIME DEFAULT NULL,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+        INDEX idx_status (status),
+        INDEX idx_type (batch_type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $batch_processing_sql)) {
+        error_log("Failed to create batch_processing table: " . mysqli_error($conn));
+        throw new Exception("Failed to create batch_processing table: " . mysqli_error($conn));
+    }
+
+    // Batch Items table
+    $batch_items_sql = "CREATE TABLE IF NOT EXISTS batch_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        batch_id INT NOT NULL,
+        item_index INT NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending' COMMENT 'pending, success, error',
+        reference_id INT DEFAULT NULL COMMENT 'ID of created record (expense_id, etc.)',
+        voucher_number VARCHAR(50) DEFAULT NULL,
+        error_message TEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (batch_id) REFERENCES batch_processing(id) ON DELETE CASCADE,
+        INDEX idx_batch (batch_id),
+        INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    if (!mysqli_query($conn, $batch_items_sql)) {
+        error_log("Failed to create batch_items table: " . mysqli_error($conn));
+        throw new Exception("Failed to create batch_items table: " . mysqli_error($conn));
+    }
+
+    // Add voucher_number to invoices if not exists
+    $check_inv_voucher = mysqli_query($conn, "SHOW COLUMNS FROM invoices LIKE 'voucher_number'");
+    if ($check_inv_voucher && $check_inv_voucher instanceof mysqli_result && mysqli_num_rows($check_inv_voucher) == 0) {
+        mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN voucher_number VARCHAR(50) DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE invoices ADD INDEX idx_voucher_number (voucher_number)");
+    }
+
+    // Add supplier_id to purchases if not exists
+    $check_purch_supplier = mysqli_query($conn, "SHOW COLUMNS FROM purchases LIKE 'supplier_id'");
+    if ($check_purch_supplier && $check_purch_supplier instanceof mysqli_result && mysqli_num_rows($check_purch_supplier) == 0) {
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN supplier_id INT DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN voucher_number VARCHAR(50) DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE purchases ADD CONSTRAINT fk_purchases_supplier FOREIGN KEY (supplier_id) REFERENCES ap_suppliers(id) ON DELETE SET NULL");
+        mysqli_query($conn, "ALTER TABLE purchases ADD INDEX idx_voucher_number (voucher_number)");
+    }
+
+    // Add VAT fields to invoices
+    $check_inv_vat = mysqli_query($conn, "SHOW COLUMNS FROM invoices LIKE 'vat_rate'");
+    if ($check_inv_vat && $check_inv_vat instanceof mysqli_result && mysqli_num_rows($check_inv_vat) == 0) {
+        mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN vat_rate DECIMAL(5, 2) DEFAULT 0.00");
+        mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN vat_amount DECIMAL(10, 2) DEFAULT 0.00");
+        mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN subtotal DECIMAL(10, 2) DEFAULT 0.00");
+    }
+
+    // Add VAT fields to purchases
+    $check_purch_vat = mysqli_query($conn, "SHOW COLUMNS FROM purchases LIKE 'vat_rate'");
+    if ($check_purch_vat && $check_purch_vat instanceof mysqli_result && mysqli_num_rows($check_purch_vat) == 0) {
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN vat_rate DECIMAL(5, 2) DEFAULT 0.00");
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN vat_amount DECIMAL(10, 2) DEFAULT 0.00");
+    }
+
+    // Add weighted_average_cost to products
+    $check_prod_wac = mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'weighted_average_cost'");
+    if ($check_prod_wac && $check_prod_wac instanceof mysqli_result && mysqli_num_rows($check_prod_wac) == 0) {
+        mysqli_query($conn, "ALTER TABLE products ADD COLUMN weighted_average_cost DECIMAL(10, 2) DEFAULT 0.00");
+    }
+
+    // Add fiscal_period_id to general_ledger (already in CREATE, but ensure FK exists)
+    $check_gl_fiscal = mysqli_query($conn, "SHOW COLUMNS FROM general_ledger LIKE 'fiscal_period_id'");
+    if ($check_gl_fiscal && $check_gl_fiscal instanceof mysqli_result && mysqli_num_rows($check_gl_fiscal) > 0) {
+        // Check if FK exists
+        $fk_check = mysqli_query($conn, "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'general_ledger' AND COLUMN_NAME = 'fiscal_period_id' AND REFERENCED_TABLE_NAME IS NOT NULL");
+        if (!$fk_check || mysqli_num_rows($fk_check) == 0) {
+            mysqli_query($conn, "ALTER TABLE general_ledger ADD CONSTRAINT fk_gl_fiscal_period FOREIGN KEY (fiscal_period_id) REFERENCES fiscal_periods(id) ON DELETE SET NULL");
+        }
+    }
 
     
     // Migrations for existing tables
@@ -421,6 +915,40 @@ function init_database() {
         mysqli_query($conn, "ALTER TABLE users ADD CONSTRAINT fk_users_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL");
     }
 
+    // Add reversal tracking columns for immutable audit trail
+    $check_inv_reversed = mysqli_query($conn, "SHOW COLUMNS FROM invoices LIKE 'is_reversed'");
+    if ($check_inv_reversed && $check_inv_reversed instanceof mysqli_result && mysqli_num_rows($check_inv_reversed) == 0) {
+        mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN is_reversed TINYINT(1) DEFAULT 0");
+        mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN reversed_at DATETIME DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE invoices ADD COLUMN reversed_by INT DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE invoices ADD CONSTRAINT fk_invoices_reversed_by FOREIGN KEY (reversed_by) REFERENCES users(id) ON DELETE SET NULL");
+    }
+
+    $check_pur_reversed = mysqli_query($conn, "SHOW COLUMNS FROM purchases LIKE 'is_reversed'");
+    if ($check_pur_reversed && $check_pur_reversed instanceof mysqli_result && mysqli_num_rows($check_pur_reversed) == 0) {
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN is_reversed TINYINT(1) DEFAULT 0");
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN reversed_at DATETIME DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN reversed_by INT DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE purchases ADD CONSTRAINT fk_purchases_reversed_by FOREIGN KEY (reversed_by) REFERENCES users(id) ON DELETE SET NULL");
+    }
+
+    // Add approval workflow columns to purchases
+    $check_pur_approval = mysqli_query($conn, "SHOW COLUMNS FROM purchases LIKE 'approval_status'");
+    if ($check_pur_approval && $check_pur_approval instanceof mysqli_result && mysqli_num_rows($check_pur_approval) == 0) {
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN approval_status VARCHAR(20) DEFAULT 'approved' COMMENT 'pending, approved, rejected'");
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN approved_by INT DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN approved_at DATETIME DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE purchases ADD CONSTRAINT fk_purchases_approved_by FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL");
+        mysqli_query($conn, "ALTER TABLE purchases ADD INDEX idx_approval_status (approval_status)");
+    }
+    
+    // Add approval threshold setting
+    $check_threshold = mysqli_query($conn, "SELECT COUNT(*) as count FROM settings WHERE setting_key = 'purchase_approval_threshold'");
+    $threshold_row = mysqli_fetch_assoc($check_threshold);
+    if ($threshold_row['count'] == 0) {
+        mysqli_query($conn, "INSERT INTO settings (setting_key, setting_value) VALUES ('purchase_approval_threshold', '10000')");
+    }
+
     // Purchase Requests table
     $requests_sql = "CREATE TABLE IF NOT EXISTS purchase_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -468,6 +996,18 @@ function init_database() {
         seed_invoices();
     } catch (Exception $e) {
         error_log("Failed to seed invoices: " . $e->getMessage());
+    }
+    // Seed Chart of Accounts
+    try {
+        seed_chart_of_accounts();
+    } catch (Exception $e) {
+        error_log("Failed to seed chart of accounts: " . $e->getMessage());
+    }
+    // Seed document sequences
+    try {
+        seed_document_sequences();
+    } catch (Exception $e) {
+        error_log("Failed to seed document sequences: " . $e->getMessage());
     }
 }
 
@@ -704,6 +1244,127 @@ function seed_invoices() {
                 mysqli_query($conn, "INSERT INTO invoice_items (invoice_id, product_id, quantity, unit_price, subtotal) VALUES ($inv_id, {$item['product_id']}, {$item['quantity']}, {$item['unit_price']}, {$item['subtotal']})");
             }
         }
+    }
+}
+
+/**
+ * Seed Chart of Accounts
+ */
+function seed_chart_of_accounts() {
+    $conn = get_db_connection();
+    
+    $result = mysqli_query($conn, "SELECT COUNT(*) as count FROM chart_of_accounts");
+    $row = mysqli_fetch_assoc($result);
+    
+    if ($row['count'] == 0) {
+        // Define standard chart of accounts structure
+        $accounts = [
+            // Assets
+            ['code' => '1000', 'name' => 'الأصول', 'type' => 'Asset', 'parent_id' => null],
+            ['code' => '1100', 'name' => 'الأصول المتداولة', 'type' => 'Asset', 'parent_id' => null], // Will be set after parent
+            ['code' => '1110', 'name' => 'النقدية', 'type' => 'Asset', 'parent_id' => null],
+            ['code' => '1120', 'name' => 'الذمم المدينة', 'type' => 'Asset', 'parent_id' => null],
+            ['code' => '1130', 'name' => 'المخزون', 'type' => 'Asset', 'parent_id' => null],
+            ['code' => '1200', 'name' => 'الأصول الثابتة', 'type' => 'Asset', 'parent_id' => null],
+            ['code' => '1210', 'name' => 'المعدات', 'type' => 'Asset', 'parent_id' => null],
+            ['code' => '1220', 'name' => 'مخصص الإهلاك', 'type' => 'Asset', 'parent_id' => null],
+            
+            // Liabilities
+            ['code' => '2000', 'name' => 'الخصوم', 'type' => 'Liability', 'parent_id' => null],
+            ['code' => '2100', 'name' => 'الخصوم المتداولة', 'type' => 'Liability', 'parent_id' => null],
+            ['code' => '2110', 'name' => 'الذمم الدائنة', 'type' => 'Liability', 'parent_id' => null],
+            ['code' => '2200', 'name' => 'ضريبة القيمة المضافة', 'type' => 'Liability', 'parent_id' => null],
+            ['code' => '2210', 'name' => 'ضريبة القيمة المضافة - مخرجات', 'type' => 'Liability', 'parent_id' => null],
+            ['code' => '2220', 'name' => 'ضريبة القيمة المضافة - مدخلات', 'type' => 'Liability', 'parent_id' => null],
+            
+            // Equity
+            ['code' => '3000', 'name' => 'حقوق الملكية', 'type' => 'Equity', 'parent_id' => null],
+            ['code' => '3100', 'name' => 'رأس المال', 'type' => 'Equity', 'parent_id' => null],
+            ['code' => '3200', 'name' => 'الأرباح المحتجزة', 'type' => 'Equity', 'parent_id' => null],
+            
+            // Revenue
+            ['code' => '4000', 'name' => 'الإيرادات', 'type' => 'Revenue', 'parent_id' => null],
+            ['code' => '4100', 'name' => 'مبيعات', 'type' => 'Revenue', 'parent_id' => null],
+            ['code' => '4200', 'name' => 'إيرادات أخرى', 'type' => 'Revenue', 'parent_id' => null],
+            
+            // Expenses
+            ['code' => '5000', 'name' => 'المصروفات', 'type' => 'Expense', 'parent_id' => null],
+            ['code' => '5100', 'name' => 'تكلفة البضاعة المباعة', 'type' => 'Expense', 'parent_id' => null],
+            ['code' => '5200', 'name' => 'المصروفات التشغيلية', 'type' => 'Expense', 'parent_id' => null],
+            ['code' => '5210', 'name' => 'إيجار', 'type' => 'Expense', 'parent_id' => null],
+            ['code' => '5220', 'name' => 'مرتبات', 'type' => 'Expense', 'parent_id' => null],
+            ['code' => '5230', 'name' => 'مرافق', 'type' => 'Expense', 'parent_id' => null],
+            ['code' => '5300', 'name' => 'مصروف الإهلاك', 'type' => 'Expense', 'parent_id' => null],
+        ];
+        
+        // Insert accounts and build parent relationships
+        $account_map = [];
+        foreach ($accounts as $acc) {
+            $code = mysqli_real_escape_string($conn, $acc['code']);
+            $name = mysqli_real_escape_string($conn, $acc['name']);
+            $type = mysqli_real_escape_string($conn, $acc['type']);
+            
+            mysqli_query($conn, "INSERT INTO chart_of_accounts (account_code, account_name, account_type) VALUES ('$code', '$name', '$type')");
+            $account_map[$code] = mysqli_insert_id($conn);
+        }
+        
+        // Update parent relationships
+        $parent_relationships = [
+            '1100' => '1000',
+            '1110' => '1100',
+            '1120' => '1100',
+            '1130' => '1100',
+            '1200' => '1000',
+            '1210' => '1200',
+            '1220' => '1200',
+            '2100' => '2000',
+            '2110' => '2100',
+            '2200' => '2000',
+            '2210' => '2200',
+            '2220' => '2200',
+            '3100' => '3000',
+            '3200' => '3000',
+            '4100' => '4000',
+            '4200' => '4000',
+            '5100' => '5000',
+            '5200' => '5000',
+            '5210' => '5200',
+            '5220' => '5200',
+            '5230' => '5200',
+            '5300' => '5000',
+        ];
+        
+        foreach ($parent_relationships as $child_code => $parent_code) {
+            if (isset($account_map[$child_code]) && isset($account_map[$parent_code])) {
+                $child_id = $account_map[$child_code];
+                $parent_id = $account_map[$parent_code];
+                mysqli_query($conn, "UPDATE chart_of_accounts SET parent_id = $parent_id WHERE id = $child_id");
+            }
+        }
+    }
+}
+
+/**
+ * Seed document sequences
+ */
+function seed_document_sequences() {
+    $conn = get_db_connection();
+    
+    $sequences = [
+        ['document_type' => 'INV', 'prefix' => 'INV', 'current_number' => 0, 'format' => '{PREFIX}-{NUMBER}'],
+        ['document_type' => 'PUR', 'prefix' => 'PUR', 'current_number' => 0, 'format' => '{PREFIX}-{NUMBER}'],
+        ['document_type' => 'EXP', 'prefix' => 'EXP', 'current_number' => 0, 'format' => '{PREFIX}-{NUMBER}'],
+        ['document_type' => 'REV', 'prefix' => 'REV', 'current_number' => 0, 'format' => '{PREFIX}-{NUMBER}'],
+        ['document_type' => 'VOU', 'prefix' => 'VOU', 'current_number' => 0, 'format' => '{PREFIX}-{NUMBER}'],
+    ];
+    
+    foreach ($sequences as $seq) {
+        $type = mysqli_real_escape_string($conn, $seq['document_type']);
+        $prefix = mysqli_real_escape_string($conn, $seq['prefix']);
+        $number = intval($seq['current_number']);
+        $format = mysqli_real_escape_string($conn, $seq['format']);
+        
+        mysqli_query($conn, "INSERT IGNORE INTO document_sequences (document_type, prefix, current_number, format) VALUES ('$type', '$prefix', $number, '$format')");
     }
 }
 

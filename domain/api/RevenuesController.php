@@ -1,8 +1,18 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../LedgerService.php';
+require_once __DIR__ . '/../ChartOfAccountsMappingService.php';
 
 class RevenuesController extends Controller {
+    private $ledgerService;
+    private $coaMapping;
+    
+    public function __construct() {
+        parent::__construct();
+        $this->ledgerService = new LedgerService();
+        $this->coaMapping = new ChartOfAccountsMappingService();
+    }
 
     public function handle() {
         if (!is_logged_in()) {
@@ -66,23 +76,52 @@ class RevenuesController extends Controller {
         
         $source = $data['source'] ?? '';
         $amount = floatval($data['amount'] ?? 0);
-        $revenue_date = $data['revenue_date'] ?? date('Y-m-d H:i:s');
+        $revenue_date = $data['revenue_date'] ?? date('Y-m-d');
         $description = $data['description'] ?? '';
+        $accounts = $this->coaMapping->getStandardAccounts();
+        $account_code = $data['account_code'] ?? $accounts['other_revenue']; // Default to Other Revenues
         $user_id = $_SESSION['user_id'];
 
         if (empty($source) || $amount <= 0) {
             $this->errorResponse('Source and positive amount required');
         }
 
-        $stmt = mysqli_prepare($this->conn, "INSERT INTO revenues (source, amount, revenue_date, description, user_id) VALUES (?, ?, ?, ?, ?)");
-        mysqli_stmt_bind_param($stmt, "sdssi", $source, $amount, $revenue_date, $description, $user_id);
+        mysqli_begin_transaction($this->conn);
         
-        if (mysqli_stmt_execute($stmt)) {
+        try {
+            $stmt = mysqli_prepare($this->conn, "INSERT INTO revenues (source, amount, revenue_date, description, user_id) VALUES (?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "sdssi", $source, $amount, $revenue_date, $description, $user_id);
+            mysqli_stmt_execute($stmt);
             $id = mysqli_insert_id($this->conn);
+            mysqli_stmt_close($stmt);
+            
+            // Post to General Ledger - Double Entry
+            $voucher_number = $this->ledgerService->getNextVoucherNumber('REV');
+            
+            $accounts = $this->coaMapping->getStandardAccounts();
+            $gl_entries = [
+                [
+                    'account_code' => $accounts['cash'], // Cash
+                    'entry_type' => 'DEBIT',
+                    'amount' => $amount,
+                    'description' => "إيراد - $source"
+                ],
+                [
+                    'account_code' => $account_code, // Revenue account
+                    'entry_type' => 'CREDIT',
+                    'amount' => $amount,
+                    'description' => "$source - $description"
+                ]
+            ];
+            
+            $this->ledgerService->postTransaction($gl_entries, 'revenues', $id, $voucher_number, $revenue_date);
+            
+            mysqli_commit($this->conn);
             log_operation('CREATE', 'revenues', $id, null, $data);
-            $this->successResponse(['id' => $id]);
-        } else {
-            $this->errorResponse('Failed to create revenue');
+            $this->successResponse(['id' => $id, 'voucher_number' => $voucher_number]);
+        } catch (Exception $e) {
+            mysqli_rollback($this->conn);
+            $this->errorResponse($e->getMessage());
         }
     }
 

@@ -46,13 +46,20 @@ All API requests route through this single file:
 'assets' => AssetsController
 'revenues' => RevenuesController
 'balance_sheet' => ReportsController
+'chart_of_accounts' => ChartOfAccountsController
+'fiscal_periods' => FiscalPeriodsController
 
 // AR
 'ar_customers' => ArController
 'ar_ledger' => ArController
 
+// Accounts Payable
+'ap_suppliers' => ApController
+'ap_transactions' => ApController
+'ap_payments' => ApController
+
 // System
-'users' => Users Controller
+'users' => UsersController
 'change_password' => UsersController
 'my_sessions' => UsersController
 'manager_list' => UsersController
@@ -194,42 +201,131 @@ credit = SUM(amount WHERE type IN ('payment','return') AND is_deleted=0)
 current_balance = debit - credit
 ```
 
-### ExpensesController, AssetsController, RevenuesController
+### ExpensesController
 
-Standard CRUD controllers with similar patterns:
+**CRUD Operations**: GET, POST, PUT, DELETE
 
-**GET**: List with search, pagination
-**POST**: Create record (user_id tracked)
-**PUT**: Update record
-**DELETE**: Remove record
+**Key Features**:
 
-**Assets Specific**:
+- **FIN-003**: Uses Chart of Accounts (COA) for expense categorization
+- `account_code`: Links to chart_of_accounts table (default: '5200' - Operating Expenses)
+- Validates account code exists and is of type 'Expense'
+- Posts to General Ledger with double-entry accounting
+- Generates voucher numbers for audit trail
 
-- `depreciation_rate` field
-- `status` field (active/disposed)
+**Create Expense**:
+
+- Requires: `category`, `amount`, `account_code` (optional, defaults to '5200')
+- Posts GL entries: Debit expense account, Credit cash account
+- Returns voucher number for reference
+
+### AssetsController
+
+**CRUD Operations**: GET, POST, PUT, DELETE
+
+**Key Features**:
+
+- `depreciation_rate`: Annual percentage for depreciation calculation
+- `status`: 'active' or 'disposed'
+- Posts to General Ledger on asset creation
+- **ALM-003**: Automated depreciation calculation endpoint
+
+**Depreciation Automation**:
+
+```http
+POST /api.php?action=assets&action=calculate_depreciation
+```
+
+- Calculates monthly depreciation for all active assets
+- Creates depreciation journal entries in General Ledger
+- Records in `asset_depreciation` table
+- Returns list of depreciated assets with amounts
+
+### RevenuesController
+
+**CRUD Operations**: GET, POST, PUT, DELETE
+
+**Key Features**:
+
+- Posts to General Ledger with double-entry accounting
+- Generates voucher numbers
+- Links to Chart of Accounts (default: '4200' - Other Revenues)
 
 ### ReportsController
 
 **Single Action**: `balance_sheet`
 
-**Calculations**:
+**ALM-001 Fix**: Now uses General Ledger for accurate financial reporting
+
+**Calculations** (from General Ledger):
 
 ```php
-// Assets
-cash_estimate = (sales + revenues) - (purchases + expenses)
-stock_value = SUM(unit_price * stock_quantity)
-fixed_assets = SUM(value WHERE status='active')
-accounts_receivable = SUM(current_balance FROM ar_customers)
+// Assets (from GL accounts)
+cash_estimate = GL balance of account '1110' (Cash) - excludes credit sales
+accounts_receivable = GL balance of account '1120' (AR)
+inventory = inventory_costing.getInventoryValue() (unsold inventory at cost)
+fixed_assets = assets.value - accumulated_depreciation (book value)
 
-// Income Statement
-total_sales = SUM(invoices.total_amount)
-other_revenues = SUM(revenues.amount)
-total_purchases = SUM(purchases.invoice_price)
-total_expenses = SUM(expenses.amount)
-net_profit = (sales + revenues) - (purchases + expenses)
+// Liabilities (from GL accounts)
+accounts_payable = GL balance of account '2110' (AP)
+vat_liability = GL balance '2210' (Output VAT) - GL balance '2220' (Input VAT)
+
+// Equity (from GL accounts)
+capital = GL balance of account '3100'
+retained_earnings = GL balance of account '3200'
+
+// Income Statement (from GL accounts)
+sales_revenue = GL balance of account '4100'
+other_revenues = GL balance of account '4200'
+cost_of_goods_sold = GL balance of account '5100' (COGS)
+operating_expenses = GL balance of account '5200'
+depreciation_expense = GL balance of account '5300'
+net_profit = total_revenue - total_expenses
 ```
 
-**Note**: Uses simplified cash accounting with inventory adjustment
+**Response Structure**:
+
+- Returns both `cash` and `cash_estimate` (for frontend compatibility)
+- Includes `accounting_equation` verification (Assets = Liabilities + Equity)
+- All values sourced from double-entry General Ledger
+
+### ChartOfAccountsController
+
+**FIN-003**: Dynamic Chart of Accounts management
+
+**CRUD Operations**: GET, POST, PUT, DELETE
+
+**Key Features**:
+
+- Hierarchical account structure (parent_id)
+- Account types: Asset, Liability, Equity, Revenue, Expense
+- Soft delete for accounts with GL entries
+- Used by ExpensesController and other financial modules
+
+**GET Parameters**:
+
+- `type`: Filter by account type
+- `parent_id`: Filter by parent account (0 for root accounts)
+
+### FiscalPeriodsController
+
+**FIN-004**: Fiscal period management and closing
+
+**Operations**:
+
+- **GET**: List all fiscal periods
+- **POST**: Create new fiscal period
+- **PUT**: Close fiscal period
+
+**Period Closing Logic**:
+
+1. Marks all GL entries in period as closed (`is_closed = 1`)
+2. Calculates net income (Revenue - Expenses)
+3. Creates closing entries:
+   - Debits all Revenue accounts (to zero them)
+   - Credits all Expense accounts (to zero them)
+   - Transfers net income to Retained Earnings
+4. Prevents modification of closed period entries
 
 ### UsersController
 
@@ -358,6 +454,14 @@ function log_operation(string $op, string $table, int $id, $old, $new): void
 14. revenues
 15. telescope
 16. settings
+17. chart_of_accounts (FIN-003)
+18. general_ledger (Double-entry accounting)
+19. fiscal_periods (FIN-004)
+20. inventory_costing (COGS tracking)
+21. asset_depreciation (ALM-003)
+22. document_sequences (TAX-002)
+23. ap_suppliers (ALM-002)
+24. ap_transactions (ALM-002)
 
 **Migrations**:
 

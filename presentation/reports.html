@@ -95,8 +95,24 @@
           </div>
         </div>
 
+        <div class="ledger-tabs" style="margin-bottom: 1.5rem;">
+          <button class="ledger-tab active" onclick="switchReportTab('balance_sheet')">
+            <i class="fas fa-file-invoice"></i> الميزانية العمومية
+          </button>
+          <button class="ledger-tab" onclick="switchReportTab('profit_loss')">
+            <i class="fas fa-chart-line"></i> قائمة الدخل
+          </button>
+          <button class="ledger-tab" onclick="switchReportTab('cash_flow')">
+            <i class="fas fa-money-bill-wave"></i> قائمة التدفقات النقدية
+          </button>
+          <button class="ledger-tab" onclick="switchReportTab('comparative')">
+            <i class="fas fa-chart-bar"></i> المقارنة
+          </button>
+        </div>
+
         <div id="alert-container"></div>
 
+        <div id="report-balance_sheet" class="report-tab-content">
         <div class="report-grid">
           <!-- Assets (What we own) -->
           <div class="report-section animate-fade">
@@ -162,6 +178,44 @@
               </div>
             </div>
           </div>
+        </div>
+        </div>
+
+        <div id="report-profit_loss" class="report-tab-content" style="display: none;">
+          <div class="filter-section">
+            <input type="date" id="pl-start-date" class="form-input" />
+            <input type="date" id="pl-end-date" class="form-input" />
+            <button class="btn btn-primary" onclick="loadProfitLoss()">
+              <i class="fas fa-search"></i> عرض التقرير
+            </button>
+          </div>
+          <div class="report-section" id="profit-loss-content"></div>
+        </div>
+
+        <div id="report-cash_flow" class="report-tab-content" style="display: none;">
+          <div class="filter-section">
+            <input type="date" id="cf-start-date" class="form-input" />
+            <input type="date" id="cf-end-date" class="form-input" />
+            <button class="btn btn-primary" onclick="loadCashFlow()">
+              <i class="fas fa-search"></i> عرض التقرير
+            </button>
+          </div>
+          <div class="report-section" id="cash-flow-content"></div>
+        </div>
+
+        <div id="report-comparative" class="report-tab-content" style="display: none;">
+          <div class="filter-section">
+            <label>الفترة الحالية:</label>
+            <input type="date" id="comp-current-start" class="form-input" />
+            <input type="date" id="comp-current-end" class="form-input" />
+            <label>الفترة السابقة:</label>
+            <input type="date" id="comp-previous-start" class="form-input" />
+            <input type="date" id="comp-previous-end" class="form-input" />
+            <button class="btn btn-primary" onclick="loadComparative()">
+              <i class="fas fa-search"></i> عرض المقارنة
+            </button>
+          </div>
+          <div class="report-section" id="comparative-content"></div>
         </div>
       </main>
     </div>

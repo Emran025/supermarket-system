@@ -1,8 +1,18 @@
 <?php
 
 require_once __DIR__ . '/Controller.php';
+require_once __DIR__ . '/../LedgerService.php';
+require_once __DIR__ . '/../DepreciationService.php';
 
 class AssetsController extends Controller {
+    private $ledgerService;
+    private $depreciationService;
+    
+    public function __construct() {
+        parent::__construct();
+        $this->ledgerService = new LedgerService();
+        $this->depreciationService = new DepreciationService();
+    }
 
     public function handle() {
         if (!is_logged_in()) {
@@ -10,6 +20,13 @@ class AssetsController extends Controller {
         }
 
         $method = $_SERVER['REQUEST_METHOD'];
+        $action = $_GET['action'] ?? '';
+
+        // ALM-003: Depreciation automation endpoint
+        if ($action === 'calculate_depreciation' && $method === 'POST') {
+            $this->calculateDepreciation();
+            return;
+        }
 
         if ($method === 'GET') {
             $this->getAssets();
@@ -76,15 +93,41 @@ class AssetsController extends Controller {
             $this->errorResponse('Asset name and positive value required');
         }
 
-        $stmt = mysqli_prepare($this->conn, "INSERT INTO assets (name, value, purchase_date, depreciation_rate, description, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        mysqli_stmt_bind_param($stmt, "sdssssi", $name, $value, $purchase_date, $depreciation_rate, $description, $status, $user_id);
+        mysqli_begin_transaction($this->conn);
         
-        if (mysqli_stmt_execute($stmt)) {
+        try {
+            $stmt = mysqli_prepare($this->conn, "INSERT INTO assets (name, value, purchase_date, depreciation_rate, description, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "sdssssi", $name, $value, $purchase_date, $depreciation_rate, $description, $status, $user_id);
+            mysqli_stmt_execute($stmt);
             $id = mysqli_insert_id($this->conn);
+            mysqli_stmt_close($stmt);
+            
+            // Post to General Ledger - Double Entry
+            $voucher_number = $this->ledgerService->getNextVoucherNumber('VOU');
+            
+            $gl_entries = [
+                [
+                    'account_code' => '1210', // Fixed Assets
+                    'entry_type' => 'DEBIT',
+                    'amount' => $value,
+                    'description' => "شراء أصل ثابت - $name"
+                ],
+                [
+                    'account_code' => '1110', // Cash (assuming cash purchase, could be AP)
+                    'entry_type' => 'CREDIT',
+                    'amount' => $value,
+                    'description' => "دفع مقابل شراء أصل - $name"
+                ]
+            ];
+            
+            $this->ledgerService->postTransaction($gl_entries, 'assets', $id, $voucher_number, $purchase_date);
+            
+            mysqli_commit($this->conn);
             log_operation('CREATE', 'assets', $id, null, $data);
-            $this->successResponse(['id' => $id]);
-        } else {
-            $this->errorResponse('Failed to create asset');
+            $this->successResponse(['id' => $id, 'voucher_number' => $voucher_number]);
+        } catch (Exception $e) {
+            mysqli_rollback($this->conn);
+            $this->errorResponse($e->getMessage());
         }
     }
 
@@ -133,6 +176,26 @@ class AssetsController extends Controller {
             $this->successResponse();
         } else {
             $this->errorResponse('Failed to delete asset');
+        }
+    }
+    
+    /**
+     * ALM-003: Calculate and record monthly depreciation for all active assets
+     */
+    private function calculateDepreciation() {
+        $data = $this->getJsonInput();
+        $fiscal_period_id = isset($data['fiscal_period_id']) ? intval($data['fiscal_period_id']) : null;
+        
+        try {
+            $depreciations = $this->depreciationService->calculateMonthlyDepreciation($fiscal_period_id);
+            
+            $this->successResponse([
+                'message' => 'Depreciation calculated successfully',
+                'depreciations' => $depreciations,
+                'count' => count($depreciations)
+            ]);
+        } catch (Exception $e) {
+            $this->errorResponse('Failed to calculate depreciation: ' . $e->getMessage());
         }
     }
 }

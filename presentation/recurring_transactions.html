@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>المعاملات المتكررة - نظام إدارة السوبر ماركت</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="main-container">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <img
+            src="assets/images/logo.svg"
+            alt="Market Logo"
+            class="logo-img"
+          />
+          <h2>السوبر ماركت</h2>
+        </div>
+        <div class="sidebar-nav">
+          <!-- Links will be injected by common.js -->
+        </div>
+      </aside>
+
+      <main class="content animate-fade">
+        <div class="page-header">
+          <h1>المعاملات المتكررة</h1>
+          <div class="header-actions">
+            <span id="current-date" class="stat-label"></span>
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                border-right: 1px solid var(--border-color);
+                padding-right: 1rem;
+                margin-right: 1rem;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span
+                id="userRoleBadge"
+                class="badge"
+                style="display: none"
+              ></span>
+            </div>
+            <button class="btn btn-primary" onclick="showCreateModal()">
+              <i class="fas fa-plus"></i> قالب جديد
+            </button>
+          </div>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الاسم</th>
+                <th>النوع</th>
+                <th>التكرار</th>
+                <th>تاريخ الاستحقاق القادم</th>
+                <th>آخر تنفيذ</th>
+                <th>الحالة</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="recurring-table-body"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="recurring-pagination"></div>
+      </main>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="recurring-modal" class="modal" style="display: none">
+      <div class="modal-content" style="max-width: 700px">
+        <div class="modal-header">
+          <h2 id="modal-title">قالب معاملة متكررة</h2>
+          <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="recurring-form">
+            <input type="hidden" id="recurring-id" />
+            <div class="form-group">
+              <label>اسم القالب *</label>
+              <input type="text" id="template-name" class="form-input" required />
+            </div>
+            <div class="form-group">
+              <label>نوع المعاملة *</label>
+              <select id="template-type" class="form-input" required onchange="updateTemplateFields()">
+                <option value="">اختر النوع</option>
+                <option value="expense">مصروف</option>
+                <option value="revenue">إيراد</option>
+                <option value="journal_voucher">سند قيد</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>التكرار *</label>
+              <select id="template-frequency" class="form-input" required>
+                <option value="">اختر التكرار</option>
+                <option value="daily">يومي</option>
+                <option value="weekly">أسبوعي</option>
+                <option value="monthly">شهري</option>
+                <option value="quarterly">ربع سنوي</option>
+                <option value="annually">سنوي</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>تاريخ الاستحقاق القادم *</label>
+              <input type="date" id="next-due-date" class="form-input" required />
+            </div>
+            
+            <div id="expense-fields" style="display: none">
+              <div class="form-group">
+                <label>حساب المصروف *</label>
+                <input type="text" id="expense-account" class="form-input" placeholder="رمز الحساب" required />
+              </div>
+              <div class="form-group">
+                <label>المبلغ *</label>
+                <input type="number" id="expense-amount" class="form-input" step="0.01" min="0" required />
+              </div>
+              <div class="form-group">
+                <label>الوصف</label>
+                <textarea id="expense-description" class="form-input" rows="2"></textarea>
+              </div>
+            </div>
+
+            <div id="revenue-fields" style="display: none">
+              <div class="form-group">
+                <label>حساب الإيراد *</label>
+                <input type="text" id="revenue-account" class="form-input" placeholder="رمز الحساب" required />
+              </div>
+              <div class="form-group">
+                <label>المبلغ *</label>
+                <input type="number" id="revenue-amount" class="form-input" step="0.01" min="0" required />
+              </div>
+              <div class="form-group">
+                <label>الوصف</label>
+                <textarea id="revenue-description" class="form-input" rows="2"></textarea>
+              </div>
+            </div>
+
+            <div id="journal-fields" style="display: none">
+              <div class="form-group">
+                <label>القيود (JSON) *</label>
+                <textarea id="journal-entries" class="form-input" rows="6" placeholder='[{"account_code":"1110","entry_type":"DEBIT","amount":1000,"description":"..."},{"account_code":"5200","entry_type":"CREDIT","amount":1000,"description":"..."}]' required></textarea>
+                <small style="color: var(--text-secondary);">يجب أن يكون إجمالي المدين = إجمالي الدائن</small>
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                إلغاء
+              </button>
+              <button type="submit" class="btn btn-primary">
+                حفظ
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="common.js"></script>
+    <script src="recurring_transactions.js"></script>
+  </body>
+</html>
+
