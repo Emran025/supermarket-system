@@ -61,6 +61,23 @@
             <p class="text-secondary" id="customer-phone-header"></p>
           </div>
           <div class="header-actions">
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                border-right: 1px solid var(--border-color);
+                padding-right: 1rem;
+                margin-right: 1rem;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span id="userRoleBadge" class="badge"></span>
+            </div>
             <button class="btn btn-secondary" onclick="openFilterDialog()">
               تصفية / بحث
             </button>

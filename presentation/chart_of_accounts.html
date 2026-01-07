@@ -30,6 +30,23 @@
         <div class="page-header">
           <h1>دليل الحسابات</h1>
           <div class="header-actions">
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                border-right: 1px solid var(--border-color);
+                padding-right: 1rem;
+                margin-right: 1rem;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span id="userRoleBadge" class="badge"></span>
+            </div>
             <button class="btn btn-secondary" onclick="loadAccountBalances()">
               <i class="fas fa-balance-scale"></i> عرض الأرصدة
             </button>
@@ -41,7 +58,15 @@
 
         <div id="alert-container"></div>
 
-        <div class="filter-section" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); margin-bottom: 1.5rem;">
+        <div
+          class="filter-section"
+          style="
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 1.5rem;
+          "
+        >
           <select id="filter-type" class="form-input" onchange="loadAccounts()">
             <option value="">جميع الأنواع</option>
             <option value="Asset">الأصول</option>
@@ -70,14 +95,16 @@
       </main>
     </div>
 
-    <!-- Create/Edit Modal -->
-    <div id="account-modal" class="modal" style="display: none">
-      <div class="modal-content">
-        <div class="modal-header">
+    <!-- Create/Edit Dialog -->
+    <div id="account-modal" class="dialog-overlay">
+      <div class="dialog">
+        <div class="dialog-header">
           <h2 id="modal-title">حساب جديد</h2>
-          <button class="modal-close" onclick="closeModal()">&times;</button>
+          <button class="close-btn" onclick="closeDialog('account-modal')">
+            &times;
+          </button>
         </div>
-        <div class="modal-body">
+        <div class="dialog-body">
           <form id="account-form">
             <input type="hidden" id="account-id" />
             <div class="form-group">
@@ -123,15 +150,19 @@
                 rows="3"
               ></textarea>
             </div>
-            <div class="modal-actions">
-              <button type="button" class="btn btn-secondary" onclick="closeModal()">
-                إلغاء
-              </button>
-              <button type="submit" class="btn btn-primary">
-                حفظ
-              </button>
-            </div>
           </form>
+        </div>
+        <div class="dialog-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="closeDialog('account-modal')"
+          >
+            إلغاء
+          </button>
+          <button type="submit" form="account-form" class="btn btn-primary">
+            <i class="fas fa-save"></i> حفظ الحساب
+          </button>
         </div>
       </div>
     </div>
@@ -140,4 +171,3 @@
     <script src="chart_of_accounts.js"></script>
   </body>
 </html>
-

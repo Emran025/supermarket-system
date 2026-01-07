@@ -12,23 +12,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   const isAuthenticated = await checkAuth();
   if (!isAuthenticated) return;
 
-  updateDateTime();
-  setInterval(updateDateTime, 1000);
-
   initProductSearch();
   initCustomerSearch(); // Add this
   await loadProducts();
   await loadInvoices();
   generateInvoiceNumber();
 });
-
-function updateDateTime() {
-  const now = new Date();
-  const dateEl = document.getElementById("current-date");
-  if (dateEl) {
-    dateEl.textContent = now.toLocaleString("en-US");
-  }
-}
 
 function generateInvoiceNumber() {
   const invoiceNumberInput = document.getElementById("invoice-number");

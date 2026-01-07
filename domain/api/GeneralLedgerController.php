@@ -24,7 +24,12 @@ class GeneralLedgerController extends Controller {
         }
         
         $method = $_SERVER['REQUEST_METHOD'];
-        $action = $_GET['action'] ?? '';
+        $action = $_GET['operation'] ?? $_GET['action'] ?? '';
+
+        // If action is the controller name itself (due to router), clear it or check operation
+        if ($action === 'general_ledger' || $action === 'gl') {
+            $action = $_GET['operation'] ?? '';
+        }
         
         if ($method === 'GET') {
             if ($action === 'trial_balance') {

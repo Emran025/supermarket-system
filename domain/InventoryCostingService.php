@@ -169,15 +169,15 @@ class InventoryCostingService {
      */
     public function getInventoryValue($product_id = null) {
         if ($product_id) {
-            $filter = "WHERE product_id = $product_id";
+            $filter = "WHERE product_id = $product_id AND is_sold = 0";
         } else {
-            $filter = "";
+            $filter = "WHERE is_sold = 0";
         }
         
         $result = mysqli_query($this->conn, 
             "SELECT SUM(total_cost) as total_value 
              FROM inventory_costing 
-             $filter AND is_sold = 0");
+             $filter");
         
         $row = mysqli_fetch_assoc($result);
         return floatval($row['total_value'] ?? 0);

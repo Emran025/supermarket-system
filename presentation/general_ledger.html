@@ -10,29 +10,6 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
     <style>
-      .ledger-tabs {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
-        border-bottom: 2px solid var(--border-color);
-      }
-      .ledger-tab {
-        padding: 0.75rem 1.5rem;
-        background: none;
-        border: none;
-        border-bottom: 3px solid transparent;
-        cursor: pointer;
-        font-weight: 600;
-        color: var(--text-secondary);
-        transition: all 0.2s;
-      }
-      .ledger-tab.active {
-        color: var(--primary-color);
-        border-bottom-color: var(--primary-color);
-      }
-      .ledger-tab:hover {
-        color: var(--primary-color);
-      }
       .filter-section {
         background: white;
         padding: 1.5rem;
@@ -104,8 +81,11 @@
       </aside>
 
       <main class="content animate-fade">
-        <div class="page-header">
-          <h1>دفتر الأستاذ العام</h1>
+        <header class="page-header">
+          <div class="header-title">
+            <h1>دفتر الأستاذ العام</h1>
+            <p>مراجعة القيود اليومية، ميزان المراجعة وتاريخ الحسابات</p>
+          </div>
           <div class="header-actions">
             <span id="current-date" class="stat-label"></span>
             <div
@@ -123,11 +103,7 @@
                 id="userNameDisplay"
                 style="font-weight: 600; color: var(--text-primary)"
               ></span>
-              <span
-                id="userRoleBadge"
-                class="badge"
-                style="display: none"
-              ></span>
+              <span id="userRoleBadge" class="badge"></span>
             </div>
             <button class="btn btn-secondary" onclick="exportLedger()">
               <i class="fas fa-file-export"></i> تصدير
@@ -136,21 +112,51 @@
               <i class="fas fa-sync"></i> تحديث
             </button>
           </div>
-        </div>
+        </header>
 
         <div id="alert-container"></div>
 
-        <div class="ledger-tabs">
-          <button class="ledger-tab active" onclick="switchTab('entries')">
-            <i class="fas fa-list"></i> قيود اليومية
+        <!-- Selection Sidebar (Consistent with Settings design) -->
+        <nav class="settings-tabs" style="margin-bottom: 2rem">
+          <div class="mobile-tab-container">
+            <div class="custom-dropdown" id="glDropdown">
+              <button
+                class="dropdown-trigger"
+                id="dropdownTrigger"
+                type="button"
+              >
+                <span id="selectedTabText" style="pointer-events: none"
+                  >قيود اليومية</span
+                >
+                <i
+                  class="fas fa-chevron-down trigger-icon"
+                  style="pointer-events: none"
+                ></i>
+              </button>
+              <div class="dropdown-menu" id="dropdownMenu">
+                <div class="dropdown-item active" data-value="entries">
+                  <i class="fas fa-list"></i> قيود اليومية
+                </div>
+                <div class="dropdown-item" data-value="trial_balance">
+                  <i class="fas fa-balance-scale"></i> ميزان المراجعة
+                </div>
+                <div class="dropdown-item" data-value="account_history">
+                  <i class="fas fa-history"></i> تاريخ الحساب
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button class="tab-btn active" data-tab="entries">
+            <i class="fas fa-list"></i> <span>قيود اليومية</span>
           </button>
-          <button class="ledger-tab" onclick="switchTab('trial_balance')">
-            <i class="fas fa-balance-scale"></i> ميزان المراجعة
+          <button class="tab-btn" data-tab="trial_balance">
+            <i class="fas fa-balance-scale"></i> <span>ميزان المراجعة</span>
           </button>
-          <button class="ledger-tab" onclick="switchTab('account_history')">
-            <i class="fas fa-history"></i> تاريخ الحساب
+          <button class="tab-btn" data-tab="account_history">
+            <i class="fas fa-history"></i> <span>تاريخ الحساب</span>
           </button>
-        </div>
+        </nav>
 
         <!-- GL Entries Tab -->
         <div id="tab-entries" class="tab-content">
@@ -167,16 +173,8 @@
               class="form-input"
               placeholder="رمز الحساب..."
             />
-            <input
-              type="date"
-              id="filter-start-date"
-              class="form-input"
-            />
-            <input
-              type="date"
-              id="filter-end-date"
-              class="form-input"
-            />
+            <input type="date" id="filter-start-date" class="form-input" />
+            <input type="date" id="filter-end-date" class="form-input" />
             <button class="btn btn-primary" onclick="filterEntries()">
               <i class="fas fa-search"></i> بحث
             </button>
@@ -208,12 +206,7 @@
         <!-- Trial Balance Tab -->
         <div id="tab-trial_balance" class="tab-content" style="display: none">
           <div class="filter-section">
-            <input
-              type="date"
-              id="tb-date"
-              class="form-input"
-              value=""
-            />
+            <input type="date" id="tb-date" class="form-input" value="" />
             <button class="btn btn-primary" onclick="loadTrialBalance()">
               <i class="fas fa-search"></i> عرض الميزان
             </button>
@@ -227,7 +220,13 @@
               <div style="text-align: center">الرصيد</div>
             </div>
             <div id="trial-balance-body"></div>
-            <div class="trial-balance-grid" style="margin-top: 1rem; border-top: 2px solid var(--primary-color);">
+            <div
+              class="trial-balance-grid"
+              style="
+                margin-top: 1rem;
+                border-top: 2px solid var(--primary-color);
+              "
+            >
               <div><strong>الإجمالي</strong></div>
               <div id="tb-total-debits" style="text-align: center"></div>
               <div id="tb-total-credits" style="text-align: center"></div>
@@ -246,16 +245,8 @@
               placeholder="رمز الحساب..."
               required
             />
-            <input
-              type="date"
-              id="history-start-date"
-              class="form-input"
-            />
-            <input
-              type="date"
-              id="history-end-date"
-              class="form-input"
-            />
+            <input type="date" id="history-start-date" class="form-input" />
+            <input type="date" id="history-end-date" class="form-input" />
             <button class="btn btn-primary" onclick="loadAccountHistory()">
               <i class="fas fa-search"></i> عرض التاريخ
             </button>
@@ -284,4 +275,3 @@
     <script src="general_ledger.js"></script>
   </body>
 </html>
-

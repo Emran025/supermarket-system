@@ -80,23 +80,35 @@
       </main>
     </div>
 
-    <!-- Create/Edit Modal -->
-    <div id="recurring-modal" class="modal" style="display: none">
-      <div class="modal-content" style="max-width: 700px">
-        <div class="modal-header">
+    <!-- Create/Edit Dialog -->
+    <div id="recurring-modal" class="dialog-overlay">
+      <div class="dialog">
+        <div class="dialog-header">
           <h2 id="modal-title">قالب معاملة متكررة</h2>
-          <button class="modal-close" onclick="closeModal()">&times;</button>
+          <button class="close-btn" onclick="closeDialog('recurring-modal')">
+            &times;
+          </button>
         </div>
-        <div class="modal-body">
+        <div class="dialog-body">
           <form id="recurring-form">
             <input type="hidden" id="recurring-id" />
             <div class="form-group">
               <label>اسم القالب *</label>
-              <input type="text" id="template-name" class="form-input" required />
+              <input
+                type="text"
+                id="template-name"
+                class="form-input"
+                required
+              />
             </div>
             <div class="form-group">
               <label>نوع المعاملة *</label>
-              <select id="template-type" class="form-input" required onchange="updateTemplateFields()">
+              <select
+                id="template-type"
+                class="form-input"
+                required
+                onchange="updateTemplateFields()"
+              >
                 <option value="">اختر النوع</option>
                 <option value="expense">مصروف</option>
                 <option value="revenue">إيراد</option>
@@ -116,56 +128,106 @@
             </div>
             <div class="form-group">
               <label>تاريخ الاستحقاق القادم *</label>
-              <input type="date" id="next-due-date" class="form-input" required />
+              <input
+                type="date"
+                id="next-due-date"
+                class="form-input"
+                required
+              />
             </div>
-            
+
             <div id="expense-fields" style="display: none">
               <div class="form-group">
                 <label>حساب المصروف *</label>
-                <input type="text" id="expense-account" class="form-input" placeholder="رمز الحساب" required />
+                <input
+                  type="text"
+                  id="expense-account"
+                  class="form-input"
+                  placeholder="رمز الحساب"
+                  required
+                />
               </div>
               <div class="form-group">
                 <label>المبلغ *</label>
-                <input type="number" id="expense-amount" class="form-input" step="0.01" min="0" required />
+                <input
+                  type="number"
+                  id="expense-amount"
+                  class="form-input"
+                  step="0.01"
+                  min="0"
+                  required
+                />
               </div>
               <div class="form-group">
                 <label>الوصف</label>
-                <textarea id="expense-description" class="form-input" rows="2"></textarea>
+                <textarea
+                  id="expense-description"
+                  class="form-input"
+                  rows="2"
+                ></textarea>
               </div>
             </div>
 
             <div id="revenue-fields" style="display: none">
               <div class="form-group">
                 <label>حساب الإيراد *</label>
-                <input type="text" id="revenue-account" class="form-input" placeholder="رمز الحساب" required />
+                <input
+                  type="text"
+                  id="revenue-account"
+                  class="form-input"
+                  placeholder="رمز الحساب"
+                  required
+                />
               </div>
               <div class="form-group">
                 <label>المبلغ *</label>
-                <input type="number" id="revenue-amount" class="form-input" step="0.01" min="0" required />
+                <input
+                  type="number"
+                  id="revenue-amount"
+                  class="form-input"
+                  step="0.01"
+                  min="0"
+                  required
+                />
               </div>
               <div class="form-group">
                 <label>الوصف</label>
-                <textarea id="revenue-description" class="form-input" rows="2"></textarea>
+                <textarea
+                  id="revenue-description"
+                  class="form-input"
+                  rows="2"
+                ></textarea>
               </div>
             </div>
 
             <div id="journal-fields" style="display: none">
               <div class="form-group">
                 <label>القيود (JSON) *</label>
-                <textarea id="journal-entries" class="form-input" rows="6" placeholder='[{"account_code":"1110","entry_type":"DEBIT","amount":1000,"description":"..."},{"account_code":"5200","entry_type":"CREDIT","amount":1000,"description":"..."}]' required></textarea>
-                <small style="color: var(--text-secondary);">يجب أن يكون إجمالي المدين = إجمالي الدائن</small>
+                <textarea
+                  id="journal-entries"
+                  class="form-input"
+                  rows="6"
+                  placeholder='[{"account_code":"1110","entry_type":"DEBIT","amount":1000,"description":"..."},{"account_code":"5200","entry_type":"CREDIT","amount":1000,"description":"..."}]'
+                  required
+                ></textarea>
+                <small style="color: var(--text-secondary)"
+                  >يجب أن يكون إجمالي المدين = إجمالي الدائن</small
+                >
               </div>
             </div>
-
-            <div class="modal-actions">
-              <button type="button" class="btn btn-secondary" onclick="closeModal()">
-                إلغاء
-              </button>
-              <button type="submit" class="btn btn-primary">
-                حفظ
-              </button>
-            </div>
           </form>
+        </div>
+        <div class="dialog-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="closeDialog('recurring-modal')"
+          >
+            إلغاء
+          </button>
+          <button type="submit" form="recurring-form" class="btn btn-primary">
+            <i class="fas fa-save"></i> حفظ القالب
+          </button>
         </div>
       </div>
     </div>
@@ -174,4 +236,3 @@
     <script src="recurring_transactions.js"></script>
   </body>
 </html>
-

@@ -27,14 +27,32 @@
       </aside>
 
       <main class="content animate-fade">
-        <div class="page-header">
-          <h1>التسوية البنكية</h1>
+        <header class="page-header">
+          <div class="header-title">
+            <h1>التسوية البنكية</h1>
+            <p>مطابقة أرصدة البنك مع السجلات المحاسبية للمتجر</p>
+          </div>
           <div class="header-actions">
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-left: 15px;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span id="userRoleBadge" class="badge"></span>
+            </div>
             <button class="btn btn-primary" onclick="showCreateModal()">
               <i class="fas fa-plus"></i> تسوية جديدة
             </button>
           </div>
-        </div>
+        </header>
 
         <div id="alert-container"></div>
 
@@ -57,14 +75,19 @@
       </main>
     </div>
 
-    <!-- Create Reconciliation Modal -->
-    <div id="reconciliation-modal" class="modal" style="display: none">
-      <div class="modal-content">
-        <div class="modal-header">
+    <!-- Create Reconciliation Dialog -->
+    <div id="reconciliation-modal" class="dialog-overlay">
+      <div class="dialog">
+        <div class="dialog-header">
           <h2>تسوية جديدة</h2>
-          <button class="modal-close" onclick="closeModal()">&times;</button>
+          <button
+            class="close-btn"
+            onclick="closeDialog('reconciliation-modal')"
+          >
+            &times;
+          </button>
         </div>
-        <div class="modal-body">
+        <div class="dialog-body">
           <form id="reconciliation-form">
             <div class="form-group">
               <label>تاريخ التسوية *</label>
@@ -93,32 +116,86 @@
                 rows="3"
               ></textarea>
             </div>
-            <div id="reconciliation-results" style="display: none; margin: 1rem 0; padding: 1rem; background: var(--primary-subtle); border-radius: var(--radius-md);">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem">
-                <span>رصيد الدفتر:</span>
-                <strong id="ledger-balance-display">0.00</strong>
+            <div
+              id="reconciliation-results"
+              style="
+                display: none;
+                margin: 2rem 0;
+                padding: 1.5rem;
+                background: #f8fafc;
+                border: 1px solid var(--border-color);
+                border-radius: var(--radius-lg);
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  margin-bottom: 0.75rem;
+                "
+              >
+                <span class="stat-label">رصيد الدفتر:</span>
+                <strong
+                  id="ledger-balance-display"
+                  style="color: var(--text-primary)"
+                  >0.00</strong
+                >
               </div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem">
-                <span>رصيد البنك:</span>
-                <strong id="bank-balance-display">0.00</strong>
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  margin-bottom: 0.75rem;
+                "
+              >
+                <span class="stat-label">رصيد البنك:</span>
+                <strong
+                  id="bank-balance-display"
+                  style="color: var(--text-primary)"
+                  >0.00</strong
+                >
               </div>
-              <div style="display: flex; justify-content: space-between; padding-top: 0.5rem; border-top: 1px solid var(--border-color)">
-                <span>الفرق:</span>
-                <strong id="difference-display" class="balance-negative">0.00</strong>
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  padding-top: 0.75rem;
+                  border-top: 1px solid var(--border-color);
+                "
+              >
+                <span style="font-weight: 700">الفرق:</span>
+                <strong
+                  id="difference-display"
+                  class="balance-negative"
+                  style="font-size: 1.1rem"
+                  >0.00</strong
+                >
               </div>
-            </div>
-            <div class="modal-actions">
-              <button type="button" class="btn btn-secondary" onclick="closeModal()">
-                إلغاء
-              </button>
-              <button type="button" class="btn btn-info" onclick="calculateReconciliation()">
-                <i class="fas fa-calculator"></i> حساب
-              </button>
-              <button type="submit" class="btn btn-primary">
-                حفظ
-              </button>
             </div>
           </form>
+        </div>
+        <div class="dialog-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="closeDialog('reconciliation-modal')"
+          >
+            إلغاء
+          </button>
+          <button
+            type="button"
+            class="btn btn-info"
+            onclick="calculateReconciliation()"
+          >
+            <i class="fas fa-calculator"></i> حساب الفرق
+          </button>
+          <button
+            type="submit"
+            form="reconciliation-form"
+            class="btn btn-primary"
+          >
+            <i class="fas fa-save"></i> حفظ التسوية
+          </button>
         </div>
       </div>
     </div>
@@ -127,4 +204,3 @@
     <script src="reconciliation.js"></script>
   </body>
 </html>
-

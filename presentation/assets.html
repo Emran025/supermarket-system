@@ -23,8 +23,11 @@
       </aside>
 
       <main class="content animate-fade">
-        <div class="page-header">
-          <h1>إدارة الأصول</h1>
+        <header class="page-header">
+          <div class="header-title">
+            <h1>إدارة الأصول</h1>
+            <p>متابعة الأصول الثابتة، قيمتها الشرائية، ونسب الإهلاك</p>
+          </div>
           <div
             class="search-container"
             style="
@@ -97,21 +100,15 @@
               style="
                 display: flex;
                 align-items: center;
-                gap: 1rem;
-                border-left: 1px solid var(--border-color);
-                padding-left: 1rem;
-                margin-left: 1rem;
+                gap: 10px;
+                margin-left: 15px;
               "
             >
               <span
                 id="userNameDisplay"
                 style="font-weight: 600; color: var(--text-primary)"
               ></span>
-              <span
-                id="userRoleBadge"
-                class="badge"
-                style="display: none"
-              ></span>
+              <span id="userRoleBadge" class="badge"></span>
             </div>
             <button
               class="btn btn-primary"
@@ -121,7 +118,7 @@
               إضافة أصل جديد
             </button>
           </div>
-        </div>
+        </header>
 
         <div id="alert-container"></div>
 

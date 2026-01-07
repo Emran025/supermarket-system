@@ -4,18 +4,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!user) return;
 
   loadDashboardStats();
-
-  // Setup Date
-  const dateEl = document.getElementById("current-date");
-  if (dateEl) {
-    const options = {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    };
-    dateEl.textContent = new Date().toLocaleDateString("ar-SA", options);
-  }
 });
 
 async function loadDashboardStats() {

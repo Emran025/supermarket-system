@@ -1,48 +1,120 @@
-let currentReportTab = 'balance_sheet';
+let currentReportTab = "balance_sheet";
 
 document.addEventListener("DOMContentLoaded", async function () {
   const isAuthenticated = await checkAuth();
   if (!isAuthenticated) return;
 
+  // 1. Custom Dropdown Logic (Copied from settings.js logic for consistency)
+  const dropdownTrigger = document.getElementById("dropdownTrigger");
+  const reportsDropdown = document.getElementById("reportsDropdown");
+  const dropdownMenu = document.getElementById("dropdownMenu");
+
+  if (dropdownTrigger && reportsDropdown) {
+    dropdownTrigger.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      reportsDropdown.classList.toggle("active");
+    });
+
+    document.addEventListener("click", function (e) {
+      if (
+        reportsDropdown.classList.contains("active") &&
+        !reportsDropdown.contains(e.target)
+      ) {
+        reportsDropdown.classList.remove("active");
+      }
+    });
+
+    if (dropdownMenu) {
+      dropdownMenu.addEventListener("click", function (e) {
+        const item = e.target.closest(".dropdown-item");
+        if (item) {
+          e.stopPropagation();
+          const tabId = item.getAttribute("data-value");
+          switchReportTab(tabId);
+          reportsDropdown.classList.remove("active");
+        }
+      });
+    }
+  }
+
+  // 2. Tab Buttons Logic
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      switchReportTab(btn.getAttribute("data-tab"));
+    });
+  });
+
   // Set default dates
-  const today = new Date().toISOString().split('T')[0];
-  const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-  document.getElementById('pl-start-date').value = firstDay;
-  document.getElementById('pl-end-date').value = today;
-  document.getElementById('cf-start-date').value = firstDay;
-  document.getElementById('cf-end-date').value = today;
+  const today = new Date().toISOString().split("T")[0];
+  const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
+  document.getElementById("pl-start-date").value = firstDay;
+  document.getElementById("pl-end-date").value = today;
+  document.getElementById("cf-start-date").value = firstDay;
+  document.getElementById("cf-end-date").value = today;
 
   await loadFinancialData();
 });
 
 function switchReportTab(tab) {
+  if (!tab) return;
   currentReportTab = tab;
-  
-  // Update tab buttons
-  document.querySelectorAll('.ledger-tab').forEach(btn => {
-    btn.classList.remove('active');
+
+  // Clear any previous alerts
+  const alertContainer = document.getElementById("alert-container");
+  if (alertContainer) alertContainer.innerHTML = "";
+
+  // 1. Update buttons (for desktop)
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    const isMatched = btn.getAttribute("data-tab") === tab;
+    btn.classList.toggle("active", isMatched);
   });
-  event.target.classList.add('active');
-  
-  // Show/hide tab content
-  document.querySelectorAll('.report-tab-content').forEach(content => {
-    content.style.display = 'none';
+
+  // 2. Update custom dropdown (for mobile)
+  const selectedTabText = document.getElementById("selectedTabText");
+  const dropdownMenu = document.getElementById("dropdownMenu");
+
+  if (selectedTabText && dropdownMenu) {
+    const activeItem = dropdownMenu.querySelector(
+      `.dropdown-item[data-value="${tab}"]`
+    );
+    if (activeItem) {
+      selectedTabText.textContent = activeItem.textContent.trim();
+
+      // Update active state in menu
+      dropdownMenu.querySelectorAll(".dropdown-item").forEach((item) => {
+        item.classList.toggle(
+          "active",
+          item.getAttribute("data-value") === tab
+        );
+      });
+    }
+  }
+
+  // 3. Show/hide tab content
+  document.querySelectorAll(".report-tab-content").forEach((content) => {
+    content.style.display = "none";
   });
-  document.getElementById(`report-${tab}`).style.display = 'block';
-  
-  // Load data for the tab
-  if (tab === 'profit_loss') {
+  const targetContent = document.getElementById(`report-${tab}`);
+  if (targetContent) {
+    targetContent.style.display = "block";
+  }
+
+  // 4. Load data for the tab
+  if (tab === "profit_loss") {
     loadProfitLoss();
-  } else if (tab === 'cash_flow') {
+  } else if (tab === "cash_flow") {
     loadCashFlow();
-  } else if (tab === 'comparative') {
+  } else if (tab === "comparative") {
     loadComparative();
   }
 }
 
 async function loadFinancialData() {
   try {
-    const result = await fetchAPI("reports?action=balance_sheet");
+    const result = await fetchAPI("reports?operation=balance_sheet");
     if (result.success) {
       const data = result.data;
 
@@ -89,86 +161,120 @@ async function loadFinancialData() {
 
 async function loadProfitLoss() {
   try {
-    const startDate = document.getElementById('pl-start-date').value;
-    const endDate = document.getElementById('pl-end-date').value;
-    
+    const startDate = document.getElementById("pl-start-date").value;
+    const endDate = document.getElementById("pl-end-date").value;
+
     if (!startDate || !endDate) {
-      showAlert('alert-container', 'يرجى تحديد تاريخ البداية والنهاية', 'warning');
+      showAlert(
+        "alert-container",
+        "يرجى تحديد تاريخ البداية والنهاية",
+        "warning"
+      );
       return;
     }
-    
-    const result = await fetchAPI(`reports?action=profit_loss&start_date=${startDate}&end_date=${endDate}`);
+
+    const result = await fetchAPI(
+      `reports?operation=profit_loss&start_date=${startDate}&end_date=${endDate}`
+    );
     if (result.success) {
       const data = result.data || {};
-      const content = document.getElementById('profit-loss-content');
-      
+      const content = document.getElementById("profit-loss-content");
+
       content.innerHTML = `
         <h2><i class="fas fa-chart-line"></i> قائمة الدخل (${startDate} إلى ${endDate})</h2>
         <div class="financial-row">
           <span class="label">إجمالي الإيرادات</span>
-          <span class="value text-success">${formatCurrency(data.total_revenue || 0)}</span>
+          <span class="value text-success">${formatCurrency(
+            data.total_revenue || 0
+          )}</span>
         </div>
         <div class="financial-row">
           <span class="label">تكلفة البضاعة المباعة</span>
-          <span class="value text-danger">-${formatCurrency(data.total_cogs || 0)}</span>
+          <span class="value text-danger">-${formatCurrency(
+            data.total_cogs || 0
+          )}</span>
         </div>
         <div class="financial-row">
           <span class="label">إجمالي الربح</span>
-          <span class="value">${formatCurrency((data.total_revenue || 0) - (data.total_cogs || 0))}</span>
+          <span class="value">${formatCurrency(
+            (data.total_revenue || 0) - (data.total_cogs || 0)
+          )}</span>
         </div>
         <div class="financial-row">
           <span class="label">المصروفات التشغيلية</span>
-          <span class="value text-danger">-${formatCurrency(data.total_expenses || 0)}</span>
+          <span class="value text-danger">-${formatCurrency(
+            data.total_expenses || 0
+          )}</span>
         </div>
         <div class="financial-row">
           <span class="label">صافي الربح / الخسارة</span>
-          <span class="value ${(data.net_profit || 0) >= 0 ? 'profit' : 'loss'}">${formatCurrency(data.net_profit || 0)}</span>
+          <span class="value ${
+            (data.net_profit || 0) >= 0 ? "profit" : "loss"
+          }">${formatCurrency(data.net_profit || 0)}</span>
         </div>
       `;
     } else {
-      showAlert('alert-container', result.message || 'فشل تحميل قائمة الدخل', 'error');
+      showAlert(
+        "alert-container",
+        result.message || "فشل تحميل قائمة الدخل",
+        "error"
+      );
     }
   } catch (error) {
-    console.error('Error loading profit loss:', error);
-    showAlert('alert-container', 'خطأ في الاتصال بالسيرفر', 'error');
+    console.error("Error loading profit loss:", error);
+    showAlert("alert-container", "خطأ في الاتصال بالسيرفر", "error");
   }
 }
 
 async function loadCashFlow() {
   try {
-    const startDate = document.getElementById('cf-start-date').value;
-    const endDate = document.getElementById('cf-end-date').value;
-    
+    const startDate = document.getElementById("cf-start-date").value;
+    const endDate = document.getElementById("cf-end-date").value;
+
     if (!startDate || !endDate) {
-      showAlert('alert-container', 'يرجى تحديد تاريخ البداية والنهاية', 'warning');
+      showAlert(
+        "alert-container",
+        "يرجى تحديد تاريخ البداية والنهاية",
+        "warning"
+      );
       return;
     }
-    
-    const result = await fetchAPI(`reports?action=cash_flow&start_date=${startDate}&end_date=${endDate}`);
+
+    const result = await fetchAPI(
+      `reports?operation=cash_flow&start_date=${startDate}&end_date=${endDate}`
+    );
     if (result.success) {
       const data = result.data || {};
-      const content = document.getElementById('cash-flow-content');
-      
+      const content = document.getElementById("cash-flow-content");
+
       content.innerHTML = `
         <h2><i class="fas fa-money-bill-wave"></i> قائمة التدفقات النقدية (${startDate} إلى ${endDate})</h2>
         <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">الأنشطة التشغيلية</h3>
         <div class="financial-row">
           <span class="label">صافي الربح</span>
-          <span class="value">${formatCurrency(data.operating_activities?.net_profit || 0)}</span>
+          <span class="value">${formatCurrency(
+            data.operating_activities?.net_profit || 0
+          )}</span>
         </div>
         <div class="financial-row">
           <span class="label">التدفقات النقدية من الأنشطة التشغيلية</span>
-          <span class="value">${formatCurrency(data.operating_activities?.net_cash_flow || 0)}</span>
+          <span class="value">${formatCurrency(
+            data.operating_activities?.net_cash_flow || 0
+          )}</span>
         </div>
         <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">الأنشطة الاستثمارية</h3>
         <div class="financial-row">
           <span class="label">شراء الأصول</span>
-          <span class="value text-danger">-${formatCurrency(data.investing_activities?.asset_purchases || 0)}</span>
+          <span class="value text-danger">-${formatCurrency(
+            data.investing_activities?.asset_purchases || 0
+          )}</span>
         </div>
         <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">الأنشطة التمويلية</h3>
         <div class="financial-row">
           <span class="label">رأس المال</span>
-          <span class="value text-success">${formatCurrency(data.financing_activities?.capital || 0)}</span>
+          <span class="value text-success">${formatCurrency(
+            data.financing_activities?.capital || 0
+          )}</span>
         </div>
         <div class="financial-row">
           <span class="label">صافي التدفق النقدي</span>
@@ -176,40 +282,44 @@ async function loadCashFlow() {
         </div>
       `;
     } else {
-      showAlert('alert-container', result.message || 'فشل تحميل قائمة التدفقات النقدية', 'error');
+      showAlert(
+        "alert-container",
+        result.message || "فشل تحميل قائمة التدفقات النقدية",
+        "error"
+      );
     }
   } catch (error) {
-    console.error('Error loading cash flow:', error);
-    showAlert('alert-container', 'خطأ في الاتصال بالسيرفر', 'error');
+    console.error("Error loading cash flow:", error);
+    showAlert("alert-container", "خطأ في الاتصال بالسيرفر", "error");
   }
 }
 
 async function loadComparative() {
   try {
-    const currentStart = document.getElementById('comp-current-start').value;
-    const currentEnd = document.getElementById('comp-current-end').value;
-    const previousStart = document.getElementById('comp-previous-start').value;
-    const previousEnd = document.getElementById('comp-previous-end').value;
-    
+    const currentStart = document.getElementById("comp-current-start").value;
+    const currentEnd = document.getElementById("comp-current-end").value;
+    const previousStart = document.getElementById("comp-previous-start").value;
+    const previousEnd = document.getElementById("comp-previous-end").value;
+
     if (!currentStart || !currentEnd) {
-      showAlert('alert-container', 'يرجى تحديد الفترة الحالية', 'warning');
+      showAlert("alert-container", "يرجى تحديد الفترة الحالية", "warning");
       return;
     }
-    
-    let url = `reports?action=comparative&current_start=${currentStart}&current_end=${currentEnd}`;
+
+    let url = `reports?operation=comparative&current_start=${currentStart}&current_end=${currentEnd}`;
     if (previousStart && previousEnd) {
       url += `&previous_start=${previousStart}&previous_end=${previousEnd}`;
     }
-    
+
     const result = await fetchAPI(url);
     if (result.success) {
       const data = result.data || {};
       const current = data.current_period || {};
       const previous = data.previous_period || {};
       const changes = data.changes || {};
-      
-      const content = document.getElementById('comparative-content');
-      
+
+      const content = document.getElementById("comparative-content");
+
       content.innerHTML = `
         <h2><i class="fas fa-chart-bar"></i> المقارنة المالية</h2>
         <table class="data-table" style="margin-top: 1.5rem;">
@@ -227,7 +337,11 @@ async function loadComparative() {
               <td><strong>الإيرادات</strong></td>
               <td>${formatCurrency(previous.revenue || 0)}</td>
               <td>${formatCurrency(current.revenue || 0)}</td>
-              <td class="${(changes.revenue?.amount || 0) >= 0 ? 'text-success' : 'text-danger'}">
+              <td class="${
+                (changes.revenue?.amount || 0) >= 0
+                  ? "text-success"
+                  : "text-danger"
+              }">
                 ${formatCurrency(changes.revenue?.amount || 0)}
               </td>
               <td>${(changes.revenue?.percentage || 0).toFixed(2)}%</td>
@@ -236,7 +350,11 @@ async function loadComparative() {
               <td><strong>المصروفات</strong></td>
               <td>${formatCurrency(previous.expenses || 0)}</td>
               <td>${formatCurrency(current.expenses || 0)}</td>
-              <td class="${(changes.expenses?.amount || 0) >= 0 ? 'text-danger' : 'text-success'}">
+              <td class="${
+                (changes.expenses?.amount || 0) >= 0
+                  ? "text-danger"
+                  : "text-success"
+              }">
                 ${formatCurrency(changes.expenses?.amount || 0)}
               </td>
               <td>${(changes.expenses?.percentage || 0).toFixed(2)}%</td>
@@ -245,7 +363,11 @@ async function loadComparative() {
               <td><strong>صافي الربح</strong></td>
               <td>${formatCurrency(previous.net_profit || 0)}</td>
               <td>${formatCurrency(current.net_profit || 0)}</td>
-              <td class="${(changes.net_profit?.amount || 0) >= 0 ? 'text-success' : 'text-danger'}">
+              <td class="${
+                (changes.net_profit?.amount || 0) >= 0
+                  ? "text-success"
+                  : "text-danger"
+              }">
                 ${formatCurrency(changes.net_profit?.amount || 0)}
               </td>
               <td>${(changes.net_profit?.percentage || 0).toFixed(2)}%</td>
@@ -254,11 +376,15 @@ async function loadComparative() {
         </table>
       `;
     } else {
-      showAlert('alert-container', result.message || 'فشل تحميل المقارنة', 'error');
+      showAlert(
+        "alert-container",
+        result.message || "فشل تحميل المقارنة",
+        "error"
+      );
     }
   } catch (error) {
-    console.error('Error loading comparative:', error);
-    showAlert('alert-container', 'خطأ في الاتصال بالسيرفر', 'error');
+    console.error("Error loading comparative:", error);
+    showAlert("alert-container", "خطأ في الاتصال بالسيرفر", "error");
   }
 }
 

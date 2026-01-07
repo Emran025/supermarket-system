@@ -752,37 +752,41 @@ tbody tr:hover {
 }
 
 .dialog-header {
-  padding: 1.5rem 2rem;
+  padding: 1.25rem 2rem;
   border-bottom: 1px solid var(--border-color);
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  position: relative;
+  background: white;
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
 }
 
 .dialog-header h2 {
   margin: 0;
   font-size: 1.25rem;
   color: var(--text-primary);
+  font-weight: 700;
+  text-align: center;
 }
 
 .close-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  border: none;
-  background: transparent;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: white;
   color: var(--text-light);
-  font-size: 1.5rem;
-  font-weight: 300;
+  font-size: 1.25rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  line-height: 1;
-  padding: 0;
-  flex-shrink: 0;
-  position: relative;
+  position: absolute;
+  left: 1.5rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .close-btn:hover {

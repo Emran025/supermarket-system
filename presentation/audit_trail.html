@@ -30,6 +30,23 @@
         <div class="page-header">
           <h1>سجل التدقيق</h1>
           <div class="header-actions">
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                border-right: 1px solid var(--border-color);
+                padding-right: 1rem;
+                margin-right: 1rem;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span id="userRoleBadge" class="badge"></span>
+            </div>
             <button class="btn btn-secondary" onclick="exportAuditLog()">
               <i class="fas fa-file-export"></i> تصدير
             </button>
@@ -41,7 +58,18 @@
 
         <div id="alert-container"></div>
 
-        <div class="filter-section" style="background: white; padding: 1.5rem; border-radius: var(--radius-lg); margin-bottom: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <div
+          class="filter-section"
+          style="
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 1.5rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+          "
+        >
           <input
             type="text"
             id="filter-search"
@@ -61,16 +89,8 @@
             <option value="expenses">المصروفات</option>
             <option value="general_ledger">دفتر الأستاذ</option>
           </select>
-          <input
-            type="date"
-            id="filter-date-from"
-            class="form-input"
-          />
-          <input
-            type="date"
-            id="filter-date-to"
-            class="form-input"
-          />
+          <input type="date" id="filter-date-from" class="form-input" />
+          <input type="date" id="filter-date-to" class="form-input" />
           <button class="btn btn-primary" onclick="loadAuditLogs()">
             <i class="fas fa-search"></i> بحث
           </button>
@@ -103,4 +123,3 @@
     <script src="audit_trail.js"></script>
   </body>
 </html>
-

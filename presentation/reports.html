@@ -59,6 +59,68 @@
         color: var(--danger-color);
       }
 
+      .filter-section {
+        background: white;
+        padding: 1.25rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        align-items: flex-end;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+      }
+
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex: 1;
+        min-width: 250px;
+      }
+
+      .filter-group label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .date-range-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #f8fafc;
+        padding: 0.25rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+      }
+
+      .date-range-group input {
+        border: none;
+        background: transparent;
+        font-size: 0.9rem;
+        padding: 0.5rem;
+        width: 100%;
+      }
+
+      .date-range-group span {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        padding: 0 0.5rem;
+      }
+
+      .date-range-group input:focus {
+        box-shadow: none;
+        background: white;
+        border-radius: var(--radius-sm);
+      }
+
+      .filter-actions {
+        display: flex;
+        align-items: flex-end;
+      }
+
       @media (max-width: 1024px) {
         .report-grid {
           grid-template-columns: 1fr;
@@ -83,9 +145,27 @@
       </aside>
 
       <main class="content animate-fade">
-        <div class="page-header">
-          <h1>التقارير المالية والمركز المالي</h1>
+        <header class="page-header">
+          <div class="header-title">
+            <h1>التقارير المالية والمركز المالي</h1>
+            <p>متابعة الأصول، الخصوم، قائمة الدخل والتدفقات النقدية</p>
+          </div>
           <div class="header-actions">
+            <div
+              class="user-info-header"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-left: 15px;
+              "
+            >
+              <span
+                id="userNameDisplay"
+                style="font-weight: 600; color: var(--text-primary)"
+              ></span>
+              <span id="userRoleBadge" class="badge"></span>
+            </div>
             <button class="btn btn-secondary" onclick="exportReport()">
               <i class="fas fa-file-pdf"></i> تصدير التقرير
             </button>
@@ -93,127 +173,207 @@
               <i class="fas fa-sync"></i> تحديث البيانات
             </button>
           </div>
-        </div>
+        </header>
 
-        <div class="ledger-tabs" style="margin-bottom: 1.5rem;">
-          <button class="ledger-tab active" onclick="switchReportTab('balance_sheet')">
-            <i class="fas fa-file-invoice"></i> الميزانية العمومية
+        <!-- Settings Sidebar (Consistent with Settings design) -->
+        <nav class="settings-tabs" style="margin-bottom: 2rem">
+          <div class="mobile-tab-container">
+            <div class="custom-dropdown" id="reportsDropdown">
+              <button
+                class="dropdown-trigger"
+                id="dropdownTrigger"
+                type="button"
+              >
+                <span id="selectedTabText" style="pointer-events: none"
+                  >الميزانية العمومية</span
+                >
+                <i
+                  class="fas fa-chevron-down trigger-icon"
+                  style="pointer-events: none"
+                ></i>
+              </button>
+              <div class="dropdown-menu" id="dropdownMenu">
+                <div class="dropdown-item active" data-value="balance_sheet">
+                  <i class="fas fa-file-invoice"></i> الميزانية العمومية
+                </div>
+                <div class="dropdown-item" data-value="profit_loss">
+                  <i class="fas fa-chart-line"></i> قائمة الدخل
+                </div>
+                <div class="dropdown-item" data-value="cash_flow">
+                  <i class="fas fa-money-bill-wave"></i> قائمة التدفقات النقدية
+                </div>
+                <div class="dropdown-item" data-value="comparative">
+                  <i class="fas fa-chart-bar"></i> المقارنة
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button class="tab-btn active" data-tab="balance_sheet">
+            <i class="fas fa-file-invoice"></i> <span>الميزانية العمومية</span>
           </button>
-          <button class="ledger-tab" onclick="switchReportTab('profit_loss')">
-            <i class="fas fa-chart-line"></i> قائمة الدخل
+          <button class="tab-btn" data-tab="profit_loss">
+            <i class="fas fa-chart-line"></i> <span>قائمة الدخل</span>
           </button>
-          <button class="ledger-tab" onclick="switchReportTab('cash_flow')">
-            <i class="fas fa-money-bill-wave"></i> قائمة التدفقات النقدية
+          <button class="tab-btn" data-tab="cash_flow">
+            <i class="fas fa-money-bill-wave"></i>
+            <span>قائمة التدفقات النقدية</span>
           </button>
-          <button class="ledger-tab" onclick="switchReportTab('comparative')">
-            <i class="fas fa-chart-bar"></i> المقارنة
+          <button class="tab-btn" data-tab="comparative">
+            <i class="fas fa-chart-bar"></i> <span>المقارنة</span>
           </button>
-        </div>
+        </nav>
 
         <div id="alert-container"></div>
 
         <div id="report-balance_sheet" class="report-tab-content">
-        <div class="report-grid">
-          <!-- Assets (What we own) -->
-          <div class="report-section animate-fade">
-            <h2><i class="fas fa-vault"></i> الميزانية العمومية (الأصول)</h2>
-            <div id="assets-list">
-              <div class="financial-row">
-                <span class="label">النقد التقديري (المبيعات - المشتريات)</span>
-                <span class="value" id="cash-estimate">0.00 ر.ي</span>
-              </div>
-              <div class="financial-row">
-                <span class="label">قيمة المخزون الحالي</span>
-                <span class="value" id="stock-value">0.00 ر.ي</span>
-              </div>
-              <div class="financial-row">
-                <span class="label">الأصول الثابتة (معدات، أثاث...)</span>
-                <span class="value" id="fixed-assets">0.00 ر.ي</span>
-              </div>
-              <div class="financial-row">
-                <span class="label">الحسابات المدينة (ديون العملاء)</span>
-                <span class="value" id="accounts-receivable">0.00 ر.ي</span>
-              </div>
-              <div class="financial-row">
-                <span class="label">إجمالي قيمة المركز المالي</span>
-                <span class="value" id="total-assets">0.00 ر.ي</span>
+          <div class="report-grid">
+            <!-- Assets (What we own) -->
+            <div class="report-section animate-fade">
+              <h2><i class="fas fa-vault"></i> الميزانية العمومية (الأصول)</h2>
+              <div id="assets-list">
+                <div class="financial-row">
+                  <span class="label"
+                    >النقد التقديري (المبيعات - المشتريات)</span
+                  >
+                  <span class="value" id="cash-estimate">0.00 ر.ي</span>
+                </div>
+                <div class="financial-row">
+                  <span class="label">قيمة المخزون الحالي</span>
+                  <span class="value" id="stock-value">0.00 ر.ي</span>
+                </div>
+                <div class="financial-row">
+                  <span class="label">الأصول الثابتة (معدات، أثاث...)</span>
+                  <span class="value" id="fixed-assets">0.00 ر.ي</span>
+                </div>
+                <div class="financial-row">
+                  <span class="label">الحسابات المدينة (ديون العملاء)</span>
+                  <span class="value" id="accounts-receivable">0.00 ر.ي</span>
+                </div>
+                <div class="financial-row">
+                  <span class="label">إجمالي قيمة المركز المالي</span>
+                  <span class="value" id="total-assets">0.00 ر.ي</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Income Statement (Profit/Loss) -->
-          <div class="report-section animate-fade">
-            <h2>
-              <i class="fas fa-file-invoice-dollar"></i> قائمة الدخل (الأرباح
-              والخسائر)
-            </h2>
-            <div id="income-list">
-              <div class="financial-row">
-                <span class="label">إجمالي إيرادات المبيعات</span>
-                <span class="value text-success" id="total-sales"
-                  >0.00 ر.ي</span
-                >
-              </div>
-              <div class="financial-row">
-                <span class="label">إيرادات مباشرة أخرى</span>
-                <span class="value text-success" id="other-revenues"
-                  >0.00 ر.ي</span
-                >
-              </div>
-              <div class="financial-row">
-                <span class="label">تلفة المشتريات الإجمالية</span>
-                <span class="value text-danger" id="total-purchases"
-                  >0.00 ر.ي</span
-                >
-              </div>
-              <div class="financial-row">
-                <span class="label">إجمالي المصروفات العمومية</span>
-                <span class="value text-danger" id="total-expenses"
-                  >0.00 ر.ي</span
-                >
-              </div>
-              <div class="financial-row">
-                <span class="label">صافي الربح / الخسارة التقديري</span>
-                <span class="value" id="net-profit">0.00 ر.ي</span>
+            <!-- Income Statement (Profit/Loss) -->
+            <div class="report-section animate-fade">
+              <h2>
+                <i class="fas fa-file-invoice-dollar"></i> قائمة الدخل (الأرباح
+                والخسائر)
+              </h2>
+              <div id="income-list">
+                <div class="financial-row">
+                  <span class="label">إجمالي إيرادات المبيعات</span>
+                  <span class="value text-success" id="total-sales"
+                    >0.00 ر.ي</span
+                  >
+                </div>
+                <div class="financial-row">
+                  <span class="label">إيرادات مباشرة أخرى</span>
+                  <span class="value text-success" id="other-revenues"
+                    >0.00 ر.ي</span
+                  >
+                </div>
+                <div class="financial-row">
+                  <span class="label">تلفة المشتريات الإجمالية</span>
+                  <span class="value text-danger" id="total-purchases"
+                    >0.00 ر.ي</span
+                  >
+                </div>
+                <div class="financial-row">
+                  <span class="label">إجمالي المصروفات العمومية</span>
+                  <span class="value text-danger" id="total-expenses"
+                    >0.00 ر.ي</span
+                  >
+                </div>
+                <div class="financial-row">
+                  <span class="label">صافي الربح / الخسارة التقديري</span>
+                  <span class="value" id="net-profit">0.00 ر.ي</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-        </div>
 
-        <div id="report-profit_loss" class="report-tab-content" style="display: none;">
+        <div
+          id="report-profit_loss"
+          class="report-tab-content"
+          style="display: none"
+        >
           <div class="filter-section">
-            <input type="date" id="pl-start-date" class="form-input" />
-            <input type="date" id="pl-end-date" class="form-input" />
-            <button class="btn btn-primary" onclick="loadProfitLoss()">
-              <i class="fas fa-search"></i> عرض التقرير
-            </button>
+            <div class="filter-group">
+              <label>فترة التقرير</label>
+              <div class="date-range-group">
+                <input type="date" id="pl-start-date" class="form-input" />
+                <span>إلى</span>
+                <input type="date" id="pl-end-date" class="form-input" />
+              </div>
+            </div>
+            <div class="filter-actions">
+              <button class="btn btn-primary" onclick="loadProfitLoss()">
+                <i class="fas fa-search"></i> عرض التقرير
+              </button>
+            </div>
           </div>
           <div class="report-section" id="profit-loss-content"></div>
         </div>
 
-        <div id="report-cash_flow" class="report-tab-content" style="display: none;">
+        <div
+          id="report-cash_flow"
+          class="report-tab-content"
+          style="display: none"
+        >
           <div class="filter-section">
-            <input type="date" id="cf-start-date" class="form-input" />
-            <input type="date" id="cf-end-date" class="form-input" />
-            <button class="btn btn-primary" onclick="loadCashFlow()">
-              <i class="fas fa-search"></i> عرض التقرير
-            </button>
+            <div class="filter-group">
+              <label>فترة التقرير</label>
+              <div class="date-range-group">
+                <input type="date" id="cf-start-date" class="form-input" />
+                <span>إلى</span>
+                <input type="date" id="cf-end-date" class="form-input" />
+              </div>
+            </div>
+            <div class="filter-actions">
+              <button class="btn btn-primary" onclick="loadCashFlow()">
+                <i class="fas fa-search"></i> عرض التقرير
+              </button>
+            </div>
           </div>
           <div class="report-section" id="cash-flow-content"></div>
         </div>
 
-        <div id="report-comparative" class="report-tab-content" style="display: none;">
+        <div
+          id="report-comparative"
+          class="report-tab-content"
+          style="display: none"
+        >
           <div class="filter-section">
-            <label>الفترة الحالية:</label>
-            <input type="date" id="comp-current-start" class="form-input" />
-            <input type="date" id="comp-current-end" class="form-input" />
-            <label>الفترة السابقة:</label>
-            <input type="date" id="comp-previous-start" class="form-input" />
-            <input type="date" id="comp-previous-end" class="form-input" />
-            <button class="btn btn-primary" onclick="loadComparative()">
-              <i class="fas fa-search"></i> عرض المقارنة
-            </button>
+            <div class="filter-group">
+              <label>الفترة الحالية</label>
+              <div class="date-range-group">
+                <input type="date" id="comp-current-start" class="form-input" />
+                <span>إلى</span>
+                <input type="date" id="comp-current-end" class="form-input" />
+              </div>
+            </div>
+            <div class="filter-group">
+              <label>الفترة السابقة</label>
+              <div class="date-range-group">
+                <input
+                  type="date"
+                  id="comp-previous-start"
+                  class="form-input"
+                />
+                <span>إلى</span>
+                <input type="date" id="comp-previous-end" class="form-input" />
+              </div>
+            </div>
+            <div class="filter-actions">
+              <button class="btn btn-primary" onclick="loadComparative()">
+                <i class="fas fa-search"></i> عرض المقارنة
+              </button>
+            </div>
           </div>
           <div class="report-section" id="comparative-content"></div>
         </div>

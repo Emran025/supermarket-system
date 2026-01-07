@@ -30,7 +30,11 @@ class ReportsController extends Controller {
             $this->errorResponse('Method Not Allowed', 405);
         }
 
-        $action = $_GET['action'] ?? '';
+        $action = $_GET['operation'] ?? $_GET['action'] ?? '';
+
+        if ($action === 'reports') {
+             $action = $_GET['operation'] ?? '';
+        }
         
         if ($action === 'balance_sheet') {
             $this->getBalanceSheet();

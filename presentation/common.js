@@ -33,7 +33,8 @@ const icons = {
   building:
     '<svg class="icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="18"></line><line x1="13" y1="22" x2="13" y2="18"></line><line x1="17" y1="22" x2="17" y2="18"></line></svg>',
   lock: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
-  unlock: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.33-2.22"></path></svg>',
+  unlock:
+    '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.33-2.22"></path></svg>',
 };
 
 function getIcon(name) {
@@ -107,12 +108,54 @@ function checkPrinterConnection() {
   });
 }
 
+// Update current date with specific format
+function updateCurrentDate() {
+  const dateEl = document.getElementById("current-date");
+  if (dateEl) {
+    const now = new Date();
+    const days = [
+      "الأحد",
+      "الاثنين",
+      "الثلاثاء",
+      "الأربعاء",
+      "الخميس",
+      "الجمعة",
+      "السبت",
+    ];
+    const months = [
+      "يناير",
+      "فبراير",
+      "مارس",
+      "أبريل",
+      "مايو",
+      "يونيو",
+      "يوليو",
+      "أغسطس",
+      "سبتمبر",
+      "أكتوبر",
+      "نوفمبر",
+      "ديسمبر",
+    ];
+
+    const dayName = days[now.getDay()];
+    const day = now.getDate();
+    const monthName = months[now.getMonth()];
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+
+    dateEl.textContent = `${dayName}، ${day} ${monthName} , ${year} - ${hours}:${minutes}`;
+  }
+}
+
 // Check authentication and setup UI
 async function checkAuth() {
   const result = await fetchAPI("check");
   if (result.success) {
     const user = result.user;
     setupSidebar(user);
+    updateCurrentDate();
+    setInterval(updateCurrentDate, 1000);
 
     // Update user name and role badge
     const nameDisplay = document.getElementById("userNameDisplay");
@@ -152,8 +195,16 @@ function setupSidebar(user) {
     { href: "general_ledger.html", icon: "dollar", text: "دفتر الأستاذ العام" },
     { href: "journal_vouchers.html", icon: "edit", text: "سندات القيد" },
     { href: "reconciliation.html", icon: "check", text: "التسوية البنكية" },
-    { href: "accrual_accounting.html", icon: "dollar", text: "المحاسبة الاستحقاقية" },
-    { href: "recurring_transactions.html", icon: "check", text: "المعاملات المتكررة" },
+    {
+      href: "accrual_accounting.html",
+      icon: "dollar",
+      text: "المحاسبة الاستحقاقية",
+    },
+    {
+      href: "recurring_transactions.html",
+      icon: "check",
+      text: "المعاملات المتكررة",
+    },
     { href: "chart_of_accounts.html", icon: "box", text: "دليل الحسابات" },
     { href: "reports.html", icon: "eye", text: "الميزانية والتقارير" },
   ];
