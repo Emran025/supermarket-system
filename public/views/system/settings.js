@@ -1,6 +1,65 @@
+// Global state for Roles management
+let allRoles = [];
+let allModules = {};
+let selectedRoleId = null;
+
+// Pagination for sessions
 let currentPage = 1;
-let itemsPerPage = 10;
 let totalItems = 0;
+const itemsPerPage = 10;
+
+// Define global functions at top level so they are available immediately
+window.openCreateRoleModal = function () {
+  const form = document.getElementById("createRoleForm");
+  if (form) form.reset();
+  openDialog("createRoleModal");
+};
+
+window.selectRole = async function (roleId) {
+  selectedRoleId = roleId;
+  renderRoles();
+
+  // IDs from API might be strings, IDs from onclick are numbers
+  const role = allRoles.find((r) => r.id == roleId);
+  if (!role) {
+    console.error(
+      "Role not found for ID:",
+      roleId,
+      "Total roles:",
+      allRoles.length
+    );
+    return;
+  }
+
+  const permissionsLoading = document.getElementById("permissionsLoading");
+  const permissionsEditor = document.getElementById("permissionsEditor");
+  const selectedRoleName = document.getElementById("selectedRoleName");
+  const selectedRoleDesc = document.getElementById("selectedRoleDesc");
+  const btnDeleteRole = document.getElementById("btnDeleteRole");
+
+  if (permissionsLoading) permissionsLoading.style.display = "none";
+  if (permissionsEditor) permissionsEditor.style.display = "block";
+
+  if (selectedRoleName) selectedRoleName.textContent = role.role_name_ar;
+  if (selectedRoleDesc)
+    selectedRoleDesc.textContent = role.description || "لا يوجد وصف";
+
+  if (btnDeleteRole)
+    btnDeleteRole.style.display = role.is_system ? "none" : "block";
+
+  // Show loading state in permissions grid
+  const permissionsGrid = document.getElementById("permissionsGrid");
+  if (permissionsGrid) {
+    permissionsGrid.innerHTML = `
+      <div class="empty-state animate-fade">
+          <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+          <p>جاري تحميل الصلاحيات...</p>
+      </div>
+    `;
+  }
+
+  await loadRolePermissions(roleId);
+};
 
 document.addEventListener("DOMContentLoaded", async function () {
   // 1. Custom Premium Dropdown Logic
@@ -9,18 +68,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   const dropdownMenu = document.getElementById("dropdownMenu");
 
   if (dropdownTrigger && settingsDropdown) {
-    // Robust listener for Firefox and Chrome
     dropdownTrigger.addEventListener("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
       settingsDropdown.classList.toggle("active");
-      console.log(
-        "Settings Menu Toggled:",
-        settingsDropdown.classList.contains("active")
-      );
     });
 
-    // Global click to close when clicking outside
     document.addEventListener("click", function (e) {
       if (
         settingsDropdown.classList.contains("active") &&
@@ -30,7 +83,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     });
 
-    // Item Selection delegation
     if (dropdownMenu) {
       dropdownMenu.addEventListener("click", function (e) {
         const item = e.target.closest(".dropdown-item");
@@ -44,63 +96,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
-  // 2. Fetch User & Load Data (with error handling)
-  try {
-    const user = await checkAuth();
-    if (!user) return;
-
-    // Use granular permissions instead of binary isAdmin
-    const canManageStore = canAccess("settings", "view");
-    const canManageInvoices = canAccess("settings", "view");
-    const canManageRoles = canAccess("roles_permissions", "view");
-
-    // Determine default tab (account is always visible for password change)
-    let activeTab = "account";
-    if (canManageStore) activeTab = "store";
-
-    // Hide/Show sections based on permissions
-    const hideSection = (value) => {
-      document
-        .querySelectorAll(`.dropdown-item[data-value="${value}"]`)
-        .forEach((i) => i.remove());
-      document
-        .querySelectorAll(`.tab-btn[data-tab="${value}"]`)
-        .forEach((t) => (t.style.display = "none"));
-    };
-
-    if (!canManageStore) hideSection("store");
-    if (!canManageInvoices) hideSection("invoices");
-    if (!canManageRoles) hideSection("roles");
-
-    if (!canManageStore && !canManageInvoices && !canManageRoles) {
-      // Update titles for restricted users
-      const title = document.querySelector(".header-title h1");
-      if (title) title.textContent = "إعدادات الحساب";
-      const subTitle = document.querySelector(".header-title p");
-      if (subTitle) subTitle.textContent = "تغيير كلمة المرور وإدارة الجلسات";
-    }
-
-    // Load actual section data
-    if (canManageStore || canManageInvoices) {
-      await loadSettings().catch(console.error);
-    }
-    await loadSessions().catch(console.error);
-
-    // 3. Final Sync (Ensures UI matches state)
-    switchTab(activeTab);
-  } catch (err) {
-    console.error("Settings initialization failed", err);
-    showToast("حدث خطأ أثناء تحميل الإعدادات", "error");
-  }
-
-  // Handle Desktop Tab Buttons
+  // 3. Setup Listeners
   document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      switchTab(btn.getAttribute("data-tab"));
-    });
+    btn.addEventListener("click", () =>
+      switchTab(btn.getAttribute("data-tab"))
+    );
   });
 
-  // Save triggers
   document.querySelectorAll(".save-trigger").forEach((btn) => {
     btn.addEventListener("click", saveSettings);
   });
@@ -108,7 +110,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   document
     .getElementById("preview-invoice-btn")
     ?.addEventListener("click", previewInvoice);
-
   document.getElementById("print-test-btn")?.addEventListener("click", () => {
     const iframe = document.getElementById("preview-iframe");
     if (iframe) {
@@ -117,7 +118,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   });
 
-  // Enable Live Preview Updates
   const settingInputs = [
     "store_name",
     "store_address",
@@ -129,8 +129,11 @@ document.addEventListener("DOMContentLoaded", async function () {
   ];
   settingInputs.forEach((id) => {
     document.getElementById(id)?.addEventListener("input", () => {
-      const dialog = document.getElementById("preview-invoice-dialog");
-      if (dialog && dialog.classList.contains("active")) {
+      if (
+        document
+          .getElementById("preview-invoice-dialog")
+          ?.classList.contains("active")
+      ) {
         renderPreview();
       }
     });
@@ -139,6 +142,68 @@ document.addEventListener("DOMContentLoaded", async function () {
   document
     .getElementById("changePasswordForm")
     ?.addEventListener("submit", handlePasswordChange);
+  document
+    .getElementById("btnSavePermissions")
+    ?.addEventListener("click", saveRolePermissions);
+  document
+    .getElementById("btnDeleteRole")
+    ?.addEventListener("click", deleteRole);
+  document
+    .getElementById("createRoleForm")
+    ?.addEventListener("submit", handleCreateRole);
+
+  // 2. Fetch User & Load Data (Robust Parallel Loading)
+  try {
+    const user = await checkAuth();
+    if (!user) return;
+
+    window.currentUser = user;
+
+    const canManageRoles = canAccess("roles_permissions", "view");
+    const canManageSettings = canAccess("settings", "view");
+
+    // Parallel load core data
+    const loadPromises = [];
+    if (canManageSettings) loadPromises.push(loadSettings());
+    loadPromises.push(loadSessions());
+    if (canManageRoles) loadPromises.push(initRolesManagement());
+
+    // Choose default active tab
+    let activeTab = "account";
+    if (canManageSettings) activeTab = "store";
+
+    // Permission-based UI cleanup
+    const hideSection = (value) => {
+      document
+        .querySelectorAll(`.dropdown-item[data-value="${value}"]`)
+        .forEach((i) => i.remove());
+      document
+        .querySelectorAll(`.tab-btn[data-tab="${value}"]`)
+        .forEach((t) => (t.style.display = "none"));
+    };
+
+    if (!canManageSettings) {
+      hideSection("store");
+      hideSection("invoices");
+    }
+    if (!canManageRoles) hideSection("roles");
+
+    switchTab(activeTab);
+
+    // Wait for all to finish in background (don't block switchTab)
+    Promise.all(
+      loadPromises.map((p) =>
+        p.catch((err) => {
+          console.error("Partial settings load failed:", err);
+        })
+      )
+    ).then(() => {
+      console.log("All settings data loaded");
+    });
+  } catch (err) {
+    console.error("Settings initialization failed", err);
+    showToast("حدث خطأ أثناء تحميل الإعدادات", "error");
+  }
 });
 
 /**
@@ -317,9 +382,6 @@ async function previewInvoice() {
   }
 }
 
-/**
- * Renders the current settings into the preview iframe
- */
 async function renderPreview() {
   const keys = [
     "store_name",
@@ -336,7 +398,6 @@ async function renderPreview() {
     if (input) settings[key] = input.value;
   });
 
-  // Fetch a sample invoice for the preview (latest one)
   const res = await fetchAPI("invoices&page=1&per_page=1");
   if (!res.success || !res.data || res.data.length === 0) {
     showToast("لا توجد مبيعات سابقة لإجراء المعاينة", "error");
@@ -413,5 +474,260 @@ async function saveSettings(e) {
   } finally {
     saveBtn.disabled = false;
     saveBtn.textContent = originalText;
+  }
+}
+
+// --- Roles & Permissions Management Functions ---
+
+async function initRolesManagement() {
+  await loadRoles();
+  await loadModules();
+}
+
+window.loadRoles = async function () {
+  const rolesList = document.getElementById("rolesList");
+  try {
+    const response = await fetchAPI("roles");
+    if (response.success) {
+      allRoles = response.data;
+      if (allRoles.length === 0) {
+        if (rolesList) {
+          rolesList.innerHTML = `
+            <div class="empty-state animate-fade">
+                <i class="fas fa-user-shield" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                <p>لا توجد أدوار مضافة حالياً</p>
+            </div>
+          `;
+        }
+        return;
+      }
+      renderRoles();
+
+      // If no role is selected, select the first one automatically
+      if (!selectedRoleId && allRoles.length > 0) {
+        selectRole(allRoles[0].id);
+      }
+    } else {
+      throw new Error(response.message || "فشل تحميل الأدوار");
+    }
+  } catch (error) {
+    console.error("Load roles error:", error);
+    if (rolesList) {
+      rolesList.innerHTML = `
+        <div class="empty-state error animate-fade">
+            <i class="fas fa-exclamation-circle text-danger" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+            <p>${error.message}</p>
+            <button class="btn btn-secondary btn-sm mt-3" onclick="loadRoles()">
+               <i class="fas fa-sync"></i> إعادة المحاولة
+            </button>
+        </div>
+      `;
+    }
+  }
+};
+
+async function loadModules() {
+  try {
+    const response = await fetchAPI("modules");
+    if (response.success) {
+      allModules = response.data;
+    }
+  } catch (error) {
+    console.error("Load modules error:", error);
+  }
+}
+
+function renderRoles() {
+  const rolesList = document.getElementById("rolesList");
+  if (!rolesList) return;
+
+  rolesList.innerHTML = allRoles
+    .map(
+      (role) => `
+         <div class="role-item ${selectedRoleId == role.id ? "active" : ""}" 
+              onclick="selectRole(${role.id})">
+             <div class="role-info">
+                 <h4>${role.role_name_ar} ${
+        role.is_system ? '<span class="badge-system">نظام</span>' : ""
+      }</h4>
+                 <p>${role.user_count} مستخدم</p>
+             </div>
+             <i class="fas fa-chevron-left" style="opacity: 0.5"></i>
+         </div>
+     `
+    )
+    .join("");
+}
+
+async function loadRolePermissions(roleId) {
+  const response = await fetchAPI(`role_permissions&role_id=${roleId}`);
+  if (response.success) {
+    renderPermissions(response.data);
+  }
+}
+
+function renderPermissions(rolePermissions) {
+  const permissionsGrid = document.getElementById("permissionsGrid");
+  if (!permissionsGrid) return;
+
+  let html = "";
+  const categories = {
+    sales: "المبيعات والإيرادات",
+    inventory: "المخازن والمنتجات",
+    purchases: "المشتريات والمصروفات",
+    people: "العملاء والموردين",
+    finance: "المحاسبة والمالية",
+    reports: "التقارير والميزانية",
+    system: "إدارة النظام",
+    hr: "الموارد البشرية",
+    other: "أخرى",
+  };
+
+  const grouped = {};
+  rolePermissions.forEach((p) => {
+    const cat = p.category || "other";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(p);
+  });
+
+  const catOrder = [
+    "sales",
+    "inventory",
+    "purchases",
+    "people",
+    "finance",
+    "reports",
+    "system",
+    "hr",
+    "other",
+  ];
+
+  catOrder.forEach((cat) => {
+    if (!grouped[cat]) return;
+
+    html += `
+        <div class="permission-group">
+            <div class="group-title">
+                ${categories[cat] || cat}
+            </div>
+      `;
+
+    grouped[cat].forEach((module) => {
+      html += `
+            <div class="module-row" data-module-id="${module.module_id}">
+                <div class="module-name">${module.module_name_ar}</div>
+                <div class="actions-grid">
+                    <label class="action-checkbox">
+                        <input type="checkbox" data-action="view" ${
+                          module.can_view ? "checked" : ""
+                        }> عرض
+                    </label>
+                    <label class="action-checkbox">
+                        <input type="checkbox" data-action="create" ${
+                          module.can_create ? "checked" : ""
+                        }> إضافة
+                    </label>
+                    <label class="action-checkbox">
+                        <input type="checkbox" data-action="edit" ${
+                          module.can_edit ? "checked" : ""
+                        }> تعديل
+                    </label>
+                    <label class="action-checkbox">
+                        <input type="checkbox" data-action="delete" ${
+                          module.can_delete ? "checked" : ""
+                        }> حذف
+                    </label>
+                </div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+  });
+
+  permissionsGrid.innerHTML = html;
+}
+
+async function saveRolePermissions() {
+  if (!selectedRoleId) return;
+
+  const btn = document.getElementById("btnSavePermissions");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "جاري الحفظ...";
+
+  const permissionsGrid = document.getElementById("permissionsGrid");
+  const permissionRows = permissionsGrid.querySelectorAll(".module-row");
+  const permissions = [];
+
+  permissionRows.forEach((row) => {
+    const moduleId = row.dataset.moduleId;
+    const canView = row.querySelector('[data-action="view"]').checked;
+    const canCreate = row.querySelector('[data-action="create"]').checked;
+    const canEdit = row.querySelector('[data-action="edit"]').checked;
+    const canDelete = row.querySelector('[data-action="delete"]').checked;
+
+    if (canView || canCreate || canEdit || canDelete) {
+      permissions.push({
+        module_id: moduleId,
+        can_view: canView,
+        can_create: canCreate,
+        can_edit: canEdit,
+        can_delete: canDelete,
+      });
+    }
+  });
+
+  const response = await fetchAPI("update_permissions", "POST", {
+    role_id: selectedRoleId,
+    permissions: permissions,
+  });
+
+  if (response.success) {
+    showToast("تم حفظ الصلاحيات بنجاح", "success");
+    if (selectedRoleId === window.currentUser?.role_id) {
+      showToast(
+        "ملاحظة: تحتاج لإعادة تسجيل الدخول لتطبيق التغييرات على حسابك",
+        "info"
+      );
+    }
+  } else {
+    showToast(response.message || "فشل حفظ الصلاحيات", "error");
+  }
+
+  btn.disabled = false;
+  btn.textContent = originalText;
+}
+
+async function handleCreateRole(e) {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const data = Object.fromEntries(formData.entries());
+
+  const response = await fetchAPI("create_role", "POST", data);
+  if (response.success) {
+    closeDialog("createRoleModal");
+    showToast("تم إضافة الدور بنجاح", "success");
+    await loadRoles();
+    selectRole(response.id);
+  } else {
+    showToast(response.message || "فشل إضافة الدور", "error");
+  }
+}
+
+async function deleteRole() {
+  const role = allRoles.find((r) => r.id === selectedRoleId);
+  if (!role || role.is_system) return;
+
+  if (!confirm(`هل أنت متأكد من حذف دور "${role.role_name_ar}"؟`)) return;
+
+  const response = await fetchAPI("roles", "DELETE", { id: selectedRoleId });
+  if (response.success) {
+    showToast("تم حذف الدور بنجاح", "success");
+    selectedRoleId = null;
+    document.getElementById("permissionsEditor").style.display = "none";
+    document.getElementById("permissionsLoading").style.display = "flex";
+    await loadRoles();
+  } else {
+    showToast(response.message || "فشل حذف الدور", "error");
   }
 }

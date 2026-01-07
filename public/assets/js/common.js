@@ -191,6 +191,7 @@ async function checkAuth() {
     window.userRole = user.role;
 
     setupSidebar(user);
+    injectTopBarActions(user);
     updateCurrentDate();
     setInterval(updateCurrentDate, 1000);
 
@@ -393,12 +394,6 @@ function setupSidebar(user) {
       text: "المعالجة الدفعية",
       module: "batch_processing",
     },
-    {
-      href: "../system/roles.html",
-      icon: "lock",
-      text: "الأدوار والصلاحيات",
-      module: "roles_permissions",
-    },
   ];
 
   // Filter links based on permissions
@@ -438,6 +433,48 @@ function setupSidebar(user) {
   });
 
   setupCollapseToggle();
+}
+
+/**
+ * Injects global top bar actions (Settings button)
+ */
+function injectTopBarActions(user) {
+  const headerActions = document.querySelector(".header-actions");
+  if (!headerActions) return;
+
+  // Only show settings button if user can access at least one settings module
+  const canAccessSettings =
+    canAccess("settings", "view") ||
+    canAccess("roles_permissions", "view") ||
+    canAccess("audit_trail", "view");
+
+  if (!document.getElementById("top-bar-settings-btn") && canAccessSettings) {
+    const settingsBtn = document.createElement("a");
+    settingsBtn.id = "top-bar-settings-btn";
+    settingsBtn.href = "../system/settings.html";
+    settingsBtn.className = "icon-btn view";
+    settingsBtn.title = "إعدادات النظام";
+    settingsBtn.style.marginLeft = "10px";
+    settingsBtn.style.padding = "10px";
+    settingsBtn.style.borderRadius = "12px";
+    settingsBtn.style.display = "flex";
+    settingsBtn.style.alignItems = "center";
+    settingsBtn.style.justifyContent = "center";
+    settingsBtn.style.color = "var(--primary-color)";
+    settingsBtn.style.background = "var(--primary-subtle)";
+    settingsBtn.style.border = "1px solid var(--border-color)";
+    settingsBtn.style.transition = "all 0.2s ease";
+
+    settingsBtn.innerHTML = getIcon("settings");
+
+    // Insert before user info
+    const userInfo = headerActions.querySelector(".user-info-header");
+    if (userInfo) {
+      headerActions.insertBefore(settingsBtn, userInfo);
+    } else {
+      headerActions.appendChild(settingsBtn);
+    }
+  }
 }
 
 function setupCollapseToggle() {

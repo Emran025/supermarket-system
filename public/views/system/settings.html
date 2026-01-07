@@ -9,6 +9,193 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
+    <style>
+      .roles-container {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 24px;
+        height: auto;
+        min-height: calc(100vh - 350px);
+      }
+
+      .roles-list-card {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: var(--radius-lg);
+        background: var(--surface-white);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+      }
+
+      .roles-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.25rem;
+      }
+
+      .role-item {
+        padding: 1rem 1.25rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .role-item:hover {
+        border-color: var(--primary-light);
+        background: var(--primary-subtle);
+        transform: translateX(-4px);
+      }
+
+      .role-item.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+      }
+
+      .role-info h4 {
+        margin: 0 0 4px 0;
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      .role-info p {
+        margin: 0;
+        font-size: 0.8rem;
+        opacity: 0.8;
+      }
+
+      .permissions-card {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: var(--radius-lg);
+        background: var(--surface-white);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+      }
+
+      .permissions-grid {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+      }
+
+      .permission-group {
+        margin-bottom: 2.5rem;
+        background: var(--surface-hover);
+        padding: 1.5rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+      }
+
+      .group-title {
+        font-size: 1.1rem;
+        font-weight: 800;
+        margin-bottom: 1.25rem;
+        color: var(--primary-dark);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--primary-light);
+      }
+
+      .module-row {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 24px;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--border-color);
+        align-items: center;
+      }
+
+      .module-row:last-child {
+        border-bottom: none;
+      }
+
+      .module-name {
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 12px;
+      }
+
+      .action-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        padding: 0.625rem 0.875rem;
+        border-radius: var(--radius-md);
+        transition: all 0.2s;
+        background: var(--surface-white);
+        border: 1px solid var(--border-color);
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .action-checkbox:hover {
+        background: var(--primary-subtle);
+        border-color: var(--primary-light);
+      }
+
+      .action-checkbox input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--primary-color);
+        cursor: pointer;
+      }
+
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 2rem;
+        opacity: 0.7;
+        text-align: center;
+        height: 100%;
+      }
+
+      .badge-system {
+        background: rgba(var(--primary-dark), 0.1);
+        color: var(--primary-dark);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        margin-right: 8px;
+      }
+
+      .role-item.active .badge-system {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+      }
+
+      .title-with-icon {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      @media (max-width: 1200px) {
+        .roles-container {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
     <div class="main-container">
@@ -297,31 +484,85 @@
                   class="pagination-container mt-4"
                 ></div>
               </div>
-              <!-- Section: Roles & Permissions -->
-              <div class="tab-content" id="tab-roles">
-                <div class="section-card">
-                  <div class="section-header">
-                    <div>
-                      <h3>الأدوار والصلاحيات</h3>
-                      <p class="text-muted">
-                        إدارة أدوار المستخدمين وتخصيص صلاحيات الوصول لكل دور
-                        وظيفي
-                      </p>
+            </div>
+
+            <!-- Section: Roles & Permissions -->
+            <div class="tab-content" id="tab-roles">
+                <div class="roles-container">
+                  <!-- Roles List -->
+                  <div class="section-card roles-list-card">
+                    <div class="section-header">
+                      <h3>الأدوار الوظيفية</h3>
+                      <button
+                        class="btn btn-primary btn-sm"
+                        onclick="openCreateRoleModal()"
+                      >
+                        <i class="fas fa-plus"></i> دور جديد
+                      </button>
+                    </div>
+                    <div class="roles-list" id="rolesList">
+                      <div class="empty-state">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>جاري تحميل الأدوار...</p>
+                      </div>
                     </div>
                   </div>
-                  <div class="roles-management-promo">
-                    <div class="promo-content">
-                      <i class="fas fa-shield-halved promo-icon"></i>
-                      <h4>لوحة إدارة الصلاحيات المتقدمة</h4>
+
+                  <!-- Permissions Grid -->
+                  <div class="section-card permissions-card">
+                    <div id="permissionsLoading" class="empty-state">
+                      <i
+                        class="fas fa-shield-halved"
+                        style="
+                          font-size: 4rem;
+                          margin-bottom: 1.5rem;
+                          color: var(--primary-light);
+                          opacity: 0.3;
+                        "
+                      ></i>
+                      <h3>لوحة التحكم بالصلاحيات</h3>
                       <p>
-                        يمكنك الآن إنشاء أدوار وظيفية غير محدودة (محاسب، كاشير،
-                        مدير مخازن...) وتخصيص صلاحيات العرض، الإضافة، التعديل
-                        والحذف لكل وحدة من وحدات النظام.
+                        يرجى اختيار دور وظيفي لعرض وتعديل الصلاحيات الممنوحة له.
                       </p>
-                      <a href="roles.html" class="btn btn-primary">
-                        <i class="fas fa-external-link-alt"></i> الانتقال لإدارة
-                        الأدوار والصلاحيات
-                      </a>
+                    </div>
+
+                    <div id="permissionsEditor" style="display: none">
+                      <div class="section-header">
+                        <div class="title-with-icon">
+                          <i
+                            class="fas fa-user-tag text-primary"
+                            style="font-size: 1.5rem"
+                          ></i>
+                          <div>
+                            <h3 id="selectedRoleName" style="margin: 0">...</h3>
+                            <p
+                              id="selectedRoleDesc"
+                              class="text-muted"
+                              style="margin: 0; font-size: 0.85rem"
+                            >
+                              ...
+                            </p>
+                          </div>
+                        </div>
+                        <div class="header-actions">
+                          <button
+                            class="btn btn-danger btn-sm"
+                            id="btnDeleteRole"
+                            style="display: none"
+                          >
+                            <i class="fas fa-trash"></i> حذف الدور
+                          </button>
+                          <button
+                            class="btn btn-primary btn-sm"
+                            id="btnSavePermissions"
+                          >
+                            <i class="fas fa-save"></i> حفظ التغييرات
+                          </button>
+                        </div>
+                      </div>
+                      <div class="permissions-grid" id="permissionsGrid">
+                        <!-- Module permissions will be loaded here -->
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -374,6 +615,95 @@
             <i class="fas fa-print"></i> طباعة اختبارية
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Create Role Modal -->
+    <div id="createRoleModal" class="dialog-overlay">
+      <div class="dialog animate-slide" style="max-width: 500px">
+        <div class="dialog-header">
+          <h2>إضافة دور وظيفي جديد</h2>
+          <button class="close-btn" onclick="closeDialog('createRoleModal')">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <form id="createRoleForm">
+          <div class="dialog-body">
+            <div class="form-group">
+              <label>كود الدور (نظامي)</label>
+              <div class="input-with-icon" style="position: relative">
+                <i
+                  class="fas fa-code"
+                  style="
+                    position: absolute;
+                    right: 12px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: var(--text-light);
+                  "
+                ></i>
+                <input
+                  type="text"
+                  name="role_key"
+                  placeholder="مثال: custom_manager"
+                  style="padding-right: 35px"
+                  required
+                />
+              </div>
+              <p
+                class="help-text"
+                style="
+                  font-size: 0.75rem;
+                  color: var(--text-light);
+                  margin-top: 4px;
+                "
+              >
+                يستخدم برمجياً للتحقق من الصلاحيات (أحرف إنجليزية صغيرة)
+              </p>
+            </div>
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px"
+            >
+              <div class="form-group">
+                <label>اسم الدور (عربي)</label>
+                <input
+                  type="text"
+                  name="role_name_ar"
+                  placeholder="مدير مبيعات"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label>اسم الدور (إنجليزي)</label>
+                <input
+                  type="text"
+                  name="role_name_en"
+                  placeholder="Sales Manager"
+                />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>وصف مختصر</label>
+              <textarea
+                name="description"
+                rows="3"
+                placeholder="وضح مسؤوليات هذا الدور..."
+              ></textarea>
+            </div>
+          </div>
+          <div class="dialog-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick="closeDialog('createRoleModal')"
+            >
+              إلغاء
+            </button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-check"></i> حفظ الدور
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
