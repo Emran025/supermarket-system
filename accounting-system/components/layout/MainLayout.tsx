@@ -33,7 +33,7 @@ export function MainLayout({
       }
 
       // Check module access if required
-      if (requiredModule) {
+      if (requiredModule && Array.isArray(authState.permissions)) {
         const hasAccess = authState.permissions.some(
           (p) =>
             p.module === requiredModule &&
@@ -50,6 +50,10 @@ export function MainLayout({
           router.push("/system/dashboard");
           return;
         }
+      } else if (requiredModule) {
+        // If required but permissions is not an array, deny access
+        router.push("/system/dashboard");
+        return;
       }
 
       setUser(authState.user);
@@ -114,13 +118,7 @@ export function MainLayout({
         onCollapsedChange={handleSidebarCollapse}
       />
       <main className={`content ${isContentExpanded ? "expanded" : ""}`}>
-        {/* Pass user and permissions to children via context or props */}
-        {typeof children === "function"
-          ? (children as (props: { user: User | null; permissions: Permission[] }) => ReactNode)({
-              user,
-              permissions,
-            })
-          : children}
+        {children}
       </main>
       <ToastContainer />
     </div>

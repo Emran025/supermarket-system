@@ -34,7 +34,9 @@ export function SearchableSelect({
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Get selected option label
-    const selectedOption = options.find((opt) => opt.value === value);
+    const selectedOption = Array.isArray(options) 
+        ? options.find((opt) => opt.value === value)
+        : null;
 
     // Update input value when selection changes
     useEffect(() => {
@@ -47,9 +49,11 @@ export function SearchableSelect({
     }, [selectedOption, value]);
 
     // Filter options based on search
-    const filteredOptions = options.filter((opt) =>
-        opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredOptions = Array.isArray(options)
+        ? options.filter((opt) =>
+            opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        : [];
 
     // Handle click outside
     useEffect(() => {

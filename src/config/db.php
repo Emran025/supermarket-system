@@ -239,6 +239,7 @@ function init_database()
         product_id INT NOT NULL,
         quantity INT NOT NULL,
         invoice_price DECIMAL(10, 2) NOT NULL,
+        expiry_date DATE DEFAULT NULL,
         user_id INT DEFAULT NULL,
         purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -250,6 +251,11 @@ function init_database()
     if (!mysqli_query($conn, $purchases_sql)) {
         error_log("Failed to create purchases table: " . mysqli_error($conn));
         throw new Exception("Failed to create purchases table: " . mysqli_error($conn));
+    }
+
+    $check_pur_expiry = mysqli_query($conn, "SHOW COLUMNS FROM purchases LIKE 'expiry_date'");
+    if ($check_pur_expiry && $check_pur_expiry instanceof mysqli_result && mysqli_num_rows($check_pur_expiry) == 0) {
+        mysqli_query($conn, "ALTER TABLE purchases ADD COLUMN expiry_date DATE DEFAULT NULL AFTER invoice_price");
     }
 
     // Invoices table

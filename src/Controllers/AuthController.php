@@ -82,8 +82,21 @@ class AuthController extends Controller {
         $result = mysqli_stmt_get_result($stmt);
         $user = mysqli_fetch_assoc($result);
 
-        // Add permissions from session for frontend RBAC
-        $user['permissions'] = $_SESSION['permissions'] ?? [];
+        // Transform permissions from session map to array of objects for frontend
+        $permissionsMap = $_SESSION['permissions'] ?? [];
+        $formattedPermissions = [];
+        
+        foreach ($permissionsMap as $module => $perms) {
+            $formattedPermissions[] = [
+                'module' => $module,
+                'can_view' => (bool)($perms['view'] ?? false),
+                'can_create' => (bool)($perms['create'] ?? false),
+                'can_edit' => (bool)($perms['edit'] ?? false),
+                'can_delete' => (bool)($perms['delete'] ?? false)
+            ];
+        }
+
+        $user['permissions'] = $formattedPermissions;
         
         // Add role key for backward compatibility
         $user['role'] = $user['role_key'] ?? 'cashier';

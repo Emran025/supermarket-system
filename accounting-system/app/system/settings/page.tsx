@@ -108,6 +108,7 @@ export default function SettingsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionsPage, setSessionsPage] = useState(1);
   const [sessionsTotalPages, setSessionsTotalPages] = useState(1);
+  const [responseModules, setResponseModules] = useState<any[]>([]);
 
   // Roles & Permissions
   const [roles, setRoles] = useState<Role[]>([]);
@@ -161,12 +162,35 @@ export default function SettingsPage() {
 
   const loadRoles = useCallback(async () => {
     try {
-      const response = await fetchAPI("/api/roles");
-      if (response.roles && Array.isArray(response.roles)) {
-        setRoles(response.roles as Role[]);
+      const response = await fetchAPI("/api/roles?action=roles");
+      if (response.data && Array.isArray(response.data)) {
+        // Map backend fields to frontend Role interface
+        const mappedRoles = response.data.map((r: any) => ({
+          id: r.id,
+          name: r.role_name_ar || r.role_key,
+          description: r.description,
+          permissions: [] // Will be loaded on selection
+        }));
+        setRoles(mappedRoles);
       }
     } catch {
       console.error("Error loading roles");
+    }
+  }, []);
+
+  const loadModules = useCallback(async () => {
+    try {
+      const response = await fetchAPI("/api/roles?action=modules");
+      if (response.data) {
+        // response.data is grouped by category
+        const flatModules: any[] = [];
+        Object.values(response.data).forEach((categoryModules: any) => {
+          flatModules.push(...categoryModules);
+        });
+        setResponseModules(flatModules);
+      }
+    } catch {
+      console.error("Error loading modules");
     }
   }, []);
 
@@ -182,12 +206,13 @@ export default function SettingsPage() {
         loadInvoiceSettings(),
         loadSessions(),
         loadRoles(),
+        loadModules(),
       ]);
       setIsLoading(false);
     };
 
     loadData();
-  }, [loadStoreSettings, loadInvoiceSettings, loadSessions, loadRoles]);
+  }, [loadStoreSettings, loadInvoiceSettings, loadSessions, loadRoles, loadModules]);
 
   const saveStoreSettings = async () => {
     try {
@@ -254,14 +279,30 @@ export default function SettingsPage() {
     }
   };
 
-  const selectRole = (role: Role) => {
+  const selectRole = async (role: Role) => {
     setSelectedRole(role);
+    try {
+      const response = await fetchAPI(`/api/roles?action=role_permissions&role_id=${role.id}`);
+      if (response.data && Array.isArray(response.data)) {
+        const mappedPermissions: RolePermission[] = response.data.map((p: any) => ({
+          module: p.module_key,
+          can_view: Boolean(Number(p.can_view)),
+          can_create: Boolean(Number(p.can_create)),
+          can_edit: Boolean(Number(p.can_edit)),
+          can_delete: Boolean(Number(p.can_delete)),
+        }));
+        setSelectedRole({ ...role, permissions: mappedPermissions });
+      }
+    } catch {
+      showToast("خطأ في تحميل الصلاحيات", "error");
+    }
   };
 
   const updateRolePermission = (moduleName: string, field: keyof RolePermission, value: boolean) => {
     if (!selectedRole) return;
 
-    const updatedPermissions = [...selectedRole.permissions];
+    const currentPermissions = Array.isArray(selectedRole.permissions) ? selectedRole.permissions : [];
+    const updatedPermissions = [...currentPermissions];
     const permIndex = updatedPermissions.findIndex((p) => p.module === moduleName);
 
     if (permIndex >= 0) {
@@ -280,12 +321,24 @@ export default function SettingsPage() {
   };
 
   const saveRolePermissions = async () => {
-    if (!selectedRole) return;
+    if (!selectedRole || !Array.isArray(selectedRole.permissions)) return;
 
     try {
-      await fetchAPI(`/api/roles/${selectedRole.id}/permissions`, {
-        method: "PUT",
-        body: JSON.stringify({ permissions: selectedRole.permissions }),
+      await fetchAPI(`/api/roles?action=update_permissions`, {
+        method: "POST",
+        body: JSON.stringify({ 
+          role_id: selectedRole.id,
+          permissions: (selectedRole.permissions || []).map(p => {
+            const moduleInfo = (responseModules || []).find((m: any) => m.module_key === p.module);
+            return {
+              module_id: moduleInfo?.id,
+              can_view: p.can_view ? 1 : 0,
+              can_create: p.can_create ? 1 : 0,
+              can_edit: p.can_edit ? 1 : 0,
+              can_delete: p.can_delete ? 1 : 0
+            };
+          }).filter(p => p.module_id)
+        }),
       });
       showToast("تم حفظ الصلاحيات", "success");
       loadRoles();
@@ -395,7 +448,7 @@ export default function SettingsPage() {
   };
 
   const getPermissionValue = (moduleName: string, field: keyof RolePermission): boolean => {
-    if (!selectedRole) return false;
+    if (!selectedRole || !Array.isArray(selectedRole.permissions)) return false;
     const perm = selectedRole.permissions.find((p) => p.module === moduleName);
     return perm ? (perm[field] as boolean) : false;
   };

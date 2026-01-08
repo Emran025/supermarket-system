@@ -66,20 +66,20 @@ export default function DashboardPage() {
         try {
             const response = await fetchAPI("/api/dashboard");
             if (response && response.success && response.data) {
-                const dashboardData = response.data as any;
+                const d = response.data as any;
                 setStats({
-                    daily_sales: dashboardData.todays_sales || 0,
-                    total_products: dashboardData.total_products || 0,
-                    low_stock_count: dashboardData.low_stock_products || 0,
-                    expiring_soon_count: dashboardData.expiring_products || 0,
-                    total_sales: dashboardData.total_sales || 0,
-                    today_expenses: dashboardData.todays_expenses || 0,
-                    total_expenses: dashboardData.total_expenses || 0,
-                    today_revenues: dashboardData.todays_revenues || 0,
-                    total_revenues: dashboardData.total_revenues || 0,
-                    total_assets: dashboardData.total_assets || 0,
+                    daily_sales: Number(d.todays_sales) || 0,
+                    total_products: Number(d.total_products) || 0,
+                    low_stock_count: Number(d.low_stock_products) || 0,
+                    expiring_soon_count: Number(d.expiring_products) || 0,
+                    total_sales: Number(d.total_sales) || 0,
+                    today_expenses: Number(d.todays_expenses) || 0,
+                    total_expenses: Number(d.total_expenses) || 0,
+                    today_revenues: Number(d.todays_revenues) || 0,
+                    total_revenues: Number(d.total_revenues) || 0,
+                    total_assets: Number(d.total_assets) || 0,
                 });
-                setRecentSales((dashboardData.recent_sales as RecentSale[]) || []);
+                setRecentSales(Array.isArray(d.recent_sales) ? d.recent_sales : []);
             }
         } catch (error) {
             console.error("Error loading dashboard:", error);
@@ -99,8 +99,8 @@ export default function DashboardPage() {
 
     const openLowStockDialog = async () => {
         try {
-            const response = await fetchAPI("/api/products/low-stock");
-            setLowStockProducts((response.products as LowStockProduct[]) || []);
+            const response = await fetchAPI("/api/dashboard?detail=low_stock");
+            setLowStockProducts((response.data as LowStockProduct[]) || []);
             setLowStockDialog(true);
         } catch {
             showToast("خطأ في تحميل المنتجات", "error");
@@ -109,8 +109,8 @@ export default function DashboardPage() {
 
     const openExpiringDialog = async () => {
         try {
-            const response = await fetchAPI("/api/products/expiring-soon");
-            setExpiringProducts((response.products as ExpiringProduct[]) || []);
+            const response = await fetchAPI("/api/dashboard?detail=expiring_soon");
+            setExpiringProducts((response.data as ExpiringProduct[]) || []);
             setExpiringDialog(true);
         } catch {
             showToast("خطأ في تحميل المنتجات", "error");

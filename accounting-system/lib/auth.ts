@@ -54,6 +54,8 @@ export function canAccess(
   module: string,
   action: "view" | "create" | "edit" | "delete" = "view"
 ): boolean {
+  if (!Array.isArray(permissions)) return false;
+  
   const moduleName = moduleAccessMap[module] || module;
   const permission = permissions.find((p) => p.module === moduleName);
   
@@ -135,7 +137,7 @@ export async function checkAuth(): Promise<AuthState> {
     const response = await fetchAPI("/api/auth/check");
     
     if (response.authenticated && response.user) {
-      const permissions = response.permissions as Permission[] || [];
+      const permissions = Array.isArray(response.permissions) ? response.permissions : [];
       storeAuth(response.user as User, permissions);
       
       return {
@@ -175,7 +177,7 @@ export async function login(
     });
     
     if (response.success && response.user) {
-      const permissions = response.permissions as Permission[] || [];
+      const permissions = Array.isArray(response.permissions) ? response.permissions : [];
       storeAuth(response.user as User, permissions);
       
       return {
