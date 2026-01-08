@@ -15,6 +15,13 @@ interface Expense {
   expense_date: string;
   description?: string;
   created_at: string;
+  payment_type: "cash" | "credit";
+  supplier_id?: number;
+}
+
+interface Supplier {
+  id: number;
+  name: string;
 }
 
 const expenseCategories = [
@@ -42,6 +49,7 @@ export default function ExpensesPage() {
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   // Form
   const [formData, setFormData] = useState({
@@ -49,6 +57,8 @@ export default function ExpensesPage() {
     amount: "",
     expense_date: new Date().toISOString().split("T")[0],
     description: "",
+    payment_type: "cash" as "cash" | "credit",
+    supplier_id: "",
   });
 
   const itemsPerPage = 10;
@@ -57,15 +67,24 @@ export default function ExpensesPage() {
     try {
       setIsLoading(true);
       const response = await fetchAPI(
-        `/api/expenses?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
+        `expenses?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
       );
-      setExpenses(response.expenses as Expense[] || []);
-      setTotalPages(Math.ceil((response.total as number || 0) / itemsPerPage));
+      setExpenses(response.data as Expense[] || []);
+      setTotalPages((response.pagination as any)?.total_pages || 1);
       setCurrentPage(page);
     } catch {
       showToast("خطأ في تحميل المصروفات", "error");
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  const loadSuppliers = useCallback(async () => {
+    try {
+      const response = await fetchAPI("ap_suppliers?limit=100");
+      setSuppliers(response.data as Supplier[] || []);
+    } catch (error) {
+      console.error("Error loading suppliers:", error);
     }
   }, []);
 
@@ -75,7 +94,8 @@ export default function ExpensesPage() {
     setUser(storedUser);
     setPermissions(storedPermissions);
     loadExpenses();
-  }, [loadExpenses]);
+    loadSuppliers();
+  }, [loadExpenses, loadSuppliers]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -90,6 +110,8 @@ export default function ExpensesPage() {
       amount: "",
       expense_date: new Date().toISOString().split("T")[0],
       description: "",
+      payment_type: "cash",
+      supplier_id: "",
     });
     setFormDialog(true);
   };
@@ -101,6 +123,8 @@ export default function ExpensesPage() {
       amount: String(expense.amount),
       expense_date: expense.expense_date.split("T")[0],
       description: expense.description || "",
+      payment_type: expense.payment_type || "cash",
+      supplier_id: String(expense.supplier_id || ""),
     });
     setFormDialog(true);
   };
@@ -116,17 +140,19 @@ export default function ExpensesPage() {
       amount: parseFloat(formData.amount),
       expense_date: formData.expense_date,
       description: formData.description,
+      payment_type: formData.payment_type,
+      supplier_id: formData.payment_type === "credit" ? parseInt(formData.supplier_id) : null,
     };
 
     try {
       if (selectedExpense) {
-        await fetchAPI(`/api/expenses/${selectedExpense.id}`, {
+        await fetchAPI(`expenses`, {
           method: "PUT",
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, id: selectedExpense.id }),
         });
         showToast("تم تحديث المصروف بنجاح", "success");
       } else {
-        await fetchAPI("/api/expenses", {
+        await fetchAPI("expenses", {
           method: "POST",
           body: JSON.stringify(payload),
         });
@@ -148,7 +174,7 @@ export default function ExpensesPage() {
     if (!deleteId) return;
 
     try {
-      await fetchAPI(`/api/expenses/${deleteId}`, { method: "DELETE" });
+      await fetchAPI(`expenses?id=${deleteId}`, { method: "DELETE" });
       showToast("تم حذف المصروف", "success");
       loadExpenses(currentPage, searchTerm);
     } catch {
@@ -162,7 +188,12 @@ export default function ExpensesPage() {
       header: "الفئة",
       dataLabel: "الفئة",
       render: (item) => (
-        <span className="badge badge-secondary">{translateExpenseCategory(item.category)}</span>
+        <div className="flex flex-col gap-1">
+          <span className="badge badge-secondary">{translateExpenseCategory(item.category)}</span>
+          <span className={`text-xs ${item.payment_type === 'credit' ? 'text-warning' : 'text-success'}`}>
+             {item.payment_type === 'credit' ? 'آجل' : 'نقدي'}
+          </span>
+        </div>
       ),
     },
     {
@@ -303,8 +334,52 @@ export default function ExpensesPage() {
             id="description"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            rows={3}
+            rows={2}
           />
+        </div>
+
+        <div className="form-row border-t pt-4 mt-2">
+          <div className="form-group">
+            <label>طريقة الدفع</label>
+            <div className="flex gap-4 items-center h-10">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="payment_type" 
+                  value="cash"
+                  checked={formData.payment_type === "cash"}
+                  onChange={() => setFormData({...formData, payment_type: "cash", supplier_id: ""})}
+                />
+                نقدي
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="payment_type" 
+                  value="credit"
+                  checked={formData.payment_type === "credit"}
+                  onChange={() => setFormData({...formData, payment_type: "credit"})}
+                />
+                آجل (ذمم)
+              </label>
+            </div>
+          </div>
+
+          {formData.payment_type === "credit" && (
+            <div className="form-group">
+              <label>المورد *</label>
+              <select
+                value={formData.supplier_id}
+                onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
+                required
+              >
+                <option value="">اختر المورد</option>
+                {suppliers.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </Dialog>
 

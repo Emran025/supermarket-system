@@ -87,6 +87,9 @@ class ExpensesController extends Controller
         $amount = floatval($data['amount'] ?? 0);
         $expense_date = $data['expense_date'] ?? date('Y-m-d');
         $description = $data['description'] ?? '';
+        $payment_type = $data['payment_type'] ?? 'cash';
+        $supplier_id = isset($data['supplier_id']) ? intval($data['supplier_id']) : null;
+
         // FIN-003: Use Chart of Accounts instead of hardcoded categories
         $accounts = $this->coaMapping->getStandardAccounts();
         $account_code = $data['account_code'] ?? $accounts['operating_expenses']; // Default to Operating Expenses
@@ -94,6 +97,10 @@ class ExpensesController extends Controller
 
         if (empty($category) || $amount <= 0) {
             $this->errorResponse('Category and positive amount required');
+        }
+
+        if ($payment_type === 'credit' && !$supplier_id) {
+            $this->errorResponse('Supplier is required for credit expenses');
         }
 
         // Validate account code exists in COA
@@ -111,16 +118,33 @@ class ExpensesController extends Controller
         mysqli_begin_transaction($this->conn);
 
         try {
-            $stmt = mysqli_prepare($this->conn, "INSERT INTO expenses (category, account_code, amount, expense_date, description, user_id) VALUES (?, ?, ?, ?, ?, ?)");
-            mysqli_stmt_bind_param($stmt, "ssdssi", $category, $account_code, $amount, $expense_date, $description, $user_id);
+            $stmt = mysqli_prepare($this->conn, "INSERT INTO expenses (category, account_code, amount, expense_date, description, user_id, payment_type, supplier_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            mysqli_stmt_bind_param($stmt, "ssdssssi", $category, $account_code, $amount, $expense_date, $description, $user_id, $payment_type, $supplier_id);
             mysqli_stmt_execute($stmt);
             $id = mysqli_insert_id($this->conn);
             mysqli_stmt_close($stmt);
 
+            // If credit, record in AP transactions
+            if ($payment_type === 'credit' && $supplier_id) {
+                $ap_stmt = mysqli_prepare(
+                    $this->conn,
+                    "INSERT INTO ap_transactions (supplier_id, type, amount, description, reference_type, reference_id, created_by) 
+                     VALUES (?, 'invoice', ?, ?, 'expenses', ?, ?)"
+                );
+                $ap_desc = "مصروف مستحق: $category - $description";
+                mysqli_stmt_bind_param($ap_stmt, "idsiii", $supplier_id, $amount, $ap_desc, $id, $user_id);
+                mysqli_stmt_execute($ap_stmt);
+                mysqli_stmt_close($ap_stmt);
+
+                // Update supplier balance
+                mysqli_query($this->conn, "UPDATE ap_suppliers SET current_balance = current_balance + $amount WHERE id = $supplier_id");
+            }
+
             // Post to General Ledger - Double Entry
             $voucher_number = $this->ledgerService->getNextVoucherNumber('EXP');
+            
+            $credit_account = ($payment_type === 'credit') ? $accounts['accounts_payable'] : $accounts['cash'];
 
-            $accounts = $this->coaMapping->getStandardAccounts();
             $gl_entries = [
                 [
                     'account_code' => $account_code, // Expense account from COA
@@ -129,10 +153,10 @@ class ExpensesController extends Controller
                     'description' => "$category - $description"
                 ],
                 [
-                    'account_code' => $accounts['cash'], // Cash
+                    'account_code' => $credit_account,
                     'entry_type' => 'CREDIT',
                     'amount' => $amount,
-                    'description' => "دفع مصروف - $category"
+                    'description' => ($payment_type === 'credit' ? "إلتزام لمورد - $category" : "دفع مصروف نقدأ - $category")
                 ]
             ];
 
@@ -158,9 +182,15 @@ class ExpensesController extends Controller
         $expense_date = $data['expense_date'] ?? date('Y-m-d H:i:s');
         $description = $data['description'] ?? '';
         $account_code = $data['account_code'] ?? null;
+        $payment_type = $data['payment_type'] ?? 'cash';
+        $supplier_id = isset($data['supplier_id']) ? intval($data['supplier_id']) : null;
 
         if (empty($category) || $amount <= 0) {
             $this->errorResponse('Category and positive amount required');
+        }
+
+        if ($payment_type === 'credit' && !$supplier_id) {
+            $this->errorResponse('Supplier is required for credit expenses');
         }
 
         // Validate account code if provided
@@ -175,18 +205,54 @@ class ExpensesController extends Controller
             }
         }
 
-        // Get old values for logging
+        // Get old values for logging and reversal
         $old_res = mysqli_query($this->conn, "SELECT * FROM expenses WHERE id = $id");
         $old_data = mysqli_fetch_assoc($old_res);
 
-        $stmt = mysqli_prepare($this->conn, "UPDATE expenses SET category = ?, account_code = ?, amount = ?, expense_date = ?, description = ? WHERE id = ?");
-        mysqli_stmt_bind_param($stmt, "ssdssi", $category, $account_code, $amount, $expense_date, $description, $id);
+        if (!$old_data) {
+            $this->errorResponse('Expense not found');
+        }
 
-        if (mysqli_stmt_execute($stmt)) {
+        mysqli_begin_transaction($this->conn);
+
+        try {
+            // 1. Revert OLD AP impact
+            if ($old_data['payment_type'] === 'credit' && $old_data['supplier_id']) {
+                $old_amount = floatval($old_data['amount']);
+                $old_sup_id = intval($old_data['supplier_id']);
+                mysqli_query($this->conn, "UPDATE ap_suppliers SET current_balance = current_balance - $old_amount WHERE id = $old_sup_id");
+                mysqli_query($this->conn, "DELETE FROM ap_transactions WHERE reference_type = 'expenses' AND reference_id = $id");
+            }
+
+            // 2. Apply NEW AP impact
+            if ($payment_type === 'credit' && $supplier_id) {
+                $ap_stmt = mysqli_prepare(
+                    $this->conn,
+                    "INSERT INTO ap_transactions (supplier_id, type, amount, description, reference_type, reference_id, created_by) 
+                     VALUES (?, 'invoice', ?, ?, 'expenses', ?, ?)"
+                );
+                $ap_desc = "تعديل مصروف مستحق: $category - $description";
+                $user_id = $_SESSION['user_id'];
+                mysqli_stmt_bind_param($ap_stmt, "idsiii", $supplier_id, $amount, $ap_desc, $id, $user_id);
+                mysqli_stmt_execute($ap_stmt);
+                mysqli_stmt_close($ap_stmt);
+
+                // Update supplier balance
+                mysqli_query($this->conn, "UPDATE ap_suppliers SET current_balance = current_balance + $amount WHERE id = $supplier_id");
+            }
+
+            // 3. Update the expense record
+            $stmt = mysqli_prepare($this->conn, "UPDATE expenses SET category = ?, account_code = ?, amount = ?, expense_date = ?, description = ?, payment_type = ?, supplier_id = ? WHERE id = ?");
+            mysqli_stmt_bind_param($stmt, "ssdssssi", $category, $account_code, $amount, $expense_date, $description, $payment_type, $supplier_id, $id);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+
+            mysqli_commit($this->conn);
             log_operation('UPDATE', 'expenses', $id, $old_data, $data);
             $this->successResponse();
-        } else {
-            $this->errorResponse('Failed to update expense');
+        } catch (Exception $e) {
+            mysqli_rollback($this->conn);
+            $this->errorResponse('Failed to update expense: ' . $e->getMessage());
         }
     }
 
@@ -195,18 +261,41 @@ class ExpensesController extends Controller
         PermissionService::requirePermission('expenses', 'delete');
         $id = intval($_GET['id'] ?? 0);
 
-        // Get old values for logging
+        // Get old values for logging and reversal
         $old_res = mysqli_query($this->conn, "SELECT * FROM expenses WHERE id = $id");
         $old_data = mysqli_fetch_assoc($old_res);
 
-        $stmt = mysqli_prepare($this->conn, "DELETE FROM expenses WHERE id = ?");
-        mysqli_stmt_bind_param($stmt, "i", $id);
+        if (!$old_data) {
+            $this->errorResponse('Expense not found');
+        }
 
-        if (mysqli_stmt_execute($stmt)) {
+        mysqli_begin_transaction($this->conn);
+
+        try {
+            // 1. If credit, reverse AP transaction and balance
+            if ($old_data['payment_type'] === 'credit' && $old_data['supplier_id']) {
+                $amount = floatval($old_data['amount']);
+                $supplier_id = intval($old_data['supplier_id']);
+                
+                // Update supplier balance
+                mysqli_query($this->conn, "UPDATE ap_suppliers SET current_balance = current_balance - $amount WHERE id = $supplier_id");
+                
+                // Delete AP transaction
+                mysqli_query($this->conn, "DELETE FROM ap_transactions WHERE reference_type = 'expenses' AND reference_id = $id");
+            }
+
+            // 2. Delete the expense
+            $stmt = mysqli_prepare($this->conn, "DELETE FROM expenses WHERE id = ?");
+            mysqli_stmt_bind_param($stmt, "i", $id);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+
+            mysqli_commit($this->conn);
             log_operation('DELETE', 'expenses', $id, $old_data);
             $this->successResponse();
-        } else {
-            $this->errorResponse('Failed to delete expense');
+        } catch (Exception $e) {
+            mysqli_rollback($this->conn);
+            $this->errorResponse('Failed to delete expense: ' . $e->getMessage());
         }
     }
 }

@@ -410,6 +410,14 @@ function init_database()
         mysqli_query($conn, "ALTER TABLE expenses ADD INDEX idx_account_code (account_code)");
     }
 
+    // Add payment_type and supplier_id columns to expenses (Liability Management)
+    $check_exp_payment = mysqli_query($conn, "SHOW COLUMNS FROM expenses LIKE 'payment_type'");
+    if ($check_exp_payment && $check_exp_payment instanceof mysqli_result && mysqli_num_rows($check_exp_payment) == 0) {
+        mysqli_query($conn, "ALTER TABLE expenses ADD COLUMN payment_type ENUM('cash', 'credit') DEFAULT 'cash'");
+        mysqli_query($conn, "ALTER TABLE expenses ADD COLUMN supplier_id INT DEFAULT NULL");
+        mysqli_query($conn, "ALTER TABLE expenses ADD CONSTRAINT fk_expense_supplier FOREIGN KEY (supplier_id) REFERENCES ap_suppliers(id) ON DELETE SET NULL");
+    }
+
     // Assets table
     $assets_sql = "CREATE TABLE IF NOT EXISTS assets (
         id INT AUTO_INCREMENT PRIMARY KEY,

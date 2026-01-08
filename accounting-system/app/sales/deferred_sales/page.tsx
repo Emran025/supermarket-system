@@ -89,7 +89,8 @@ export default function DeferredSalesPage() {
   const [unitPrice, setUnitPrice] = useState("");
   const [itemStock, setItemStock] = useState("");
   const [subtotal, setSubtotal] = useState(0);
-  const [discount, setDiscount] = useState("0");
+  const [discountValue, setDiscountValue] = useState("0");
+  const [discountType, setDiscountType] = useState<"fixed" | "percent">("fixed");
   const [amountPaid, setAmountPaid] = useState("");
 
   // Current invoice items
@@ -109,6 +110,18 @@ export default function DeferredSalesPage() {
   const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
+
+  const itemsTotal = invoiceItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+  const calculatedDiscount = useCallback(() => {
+    const val = parseNumber(discountValue);
+    if (discountType === "percent") {
+      return (itemsTotal * val) / 100;
+    }
+    return val;
+  }, [discountValue, discountType, itemsTotal]);
+
+  const finalTotal = (itemsTotal - calculatedDiscount()) * 1.15;
 
   const generateInvoiceNumber = useCallback(() => {
     const num = "INV-" + Date.now().toString().slice(-8);
@@ -149,8 +162,7 @@ export default function DeferredSalesPage() {
       if (response.success && response.data) {
         setInvoices(response.data as Invoice[]);
 
-        const total = Number((response.pagination as Pagination)?.total_records || response.total || 0);
-        setTotalPages(Math.ceil(total / itemsPerPage));
+        setTotalPages((response.pagination as any)?.total_pages || 1);
         setCurrentPage(page);
       }
     } catch {
@@ -345,9 +357,6 @@ export default function DeferredSalesPage() {
     setInvoiceItems(invoiceItems.filter((_, i) => i !== index));
   };
 
-  const updateTotal = () => {
-    return invoiceItems.reduce((sum, item) => sum + item.subtotal, 0);
-  };
 
   const finishInvoice = async () => {
     if (invoiceItems.length === 0) {
@@ -369,10 +378,11 @@ export default function DeferredSalesPage() {
           unit_price: item.unit_price,
           subtotal: item.subtotal,
         })),
-        discount_amount: parseNumber(discount),
         payment_type: "credit",
         customer_id: selectedCustomer.id,
         amount_paid: parseNumber(amountPaid),
+        discount_amount: calculatedDiscount(),
+        subtotal: itemsTotal,
       };
 
       const response = await fetchAPI("invoices", {
@@ -394,6 +404,7 @@ export default function DeferredSalesPage() {
 
         // Reset
         setInvoiceItems([]);
+        setDiscountValue("0");
         setSelectedCustomer(null);
         setCustomerSearchTerm("");
         setAmountPaid("");
@@ -794,26 +805,49 @@ export default function DeferredSalesPage() {
                 </table>
               </div>
 
-              <div className="sales-summary-bar" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "1rem", alignItems: "end" }}>
+              <div className="sales-summary-bar">
                 <div className="summary-stat">
                   <span className="stat-label">مجموع العناصر</span>
-                  <span className="stat-value">{formatCurrency(updateTotal())}</span>
+                  <span className="stat-value">{formatCurrency(itemsTotal)}</span>
                 </div>
+                
                 <div className="summary-stat">
-                  <span className="stat-label">الخصم</span>
-                  <input
-                    type="number"
-                    value={discount}
-                    onChange={(e) => setDiscount(e.target.value)}
-                    className="minimal-input"
-                    style={{ width: "80px", textAlign: "center", borderBottom: "1px solid var(--primary-color)" }}
-                    min="0"
-                  />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
+                    <span className="stat-label">الخصم</span>
+                    <div className="discount-type-toggle">
+                      <button 
+                        className={discountType === "fixed" ? "active" : ""} 
+                        onClick={() => setDiscountType("fixed")}
+                        type="button"
+                      >$</button>
+                      <button 
+                        className={discountType === "percent" ? "active" : ""} 
+                        onClick={() => setDiscountType("percent")}
+                        type="button"
+                      >%</button>
+                    </div>
+                  </div>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="number"
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(e.target.value)}
+                      className="minimal-input"
+                      style={{ width: "100%", textAlign: "center", paddingBottom: "4px" }}
+                      min="0"
+                    />
+                    {calculatedDiscount() > 0 && (
+                      <div style={{ fontSize: "10px", color: "var(--text-secondary)", position: "absolute", bottom: "-14px", width: "100%", textAlign: "center" }}>
+                        مبلغ الخصم: {formatCurrency(calculatedDiscount())}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
                 <div className="summary-stat">
-                  <span className="stat-label">الإجمالي (شامل الضريبة)</span>
+                  <span className="stat-label">المبلغ الإجمالي</span>
                   <span id="total-amount" className="stat-value highlight">
-                    {formatCurrency((updateTotal() - parseNumber(discount)) * 1.15)}
+                    {formatCurrency(finalTotal)}
                   </span>
                 </div>
                 <button
@@ -822,7 +856,7 @@ export default function DeferredSalesPage() {
                   onClick={finishInvoice}
                   id="finish-btn"
                   data-icon="check"
-                  style={{ height: "100%" }}
+                  style={{ height: "100%", padding: "0 2rem" }}
                 >
                   حفظ الفاتورة
                 </button>

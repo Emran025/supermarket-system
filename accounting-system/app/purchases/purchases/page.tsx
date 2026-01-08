@@ -78,10 +78,10 @@ export default function PurchasesPage() {
         try {
             setIsLoading(true);
             const response = await fetchAPI(
-                `/api/purchases?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
+                `purchases?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
             );
-            setPurchases((response.purchases as Purchase[]) || []);
-            setTotalPages(Math.ceil((Number(response.total) || 0) / itemsPerPage));
+            setPurchases((response.data as Purchase[]) || []);
+            setTotalPages((response.pagination as any)?.total_pages || 1);
             setCurrentPage(page);
         } catch {
             showToast("خطأ في تحميل المشتريات", "error");
@@ -92,8 +92,8 @@ export default function PurchasesPage() {
 
     const loadProducts = useCallback(async () => {
         try {
-            const response = await fetchAPI("/api/products?limit=1000");
-            setProducts((response.products as Product[]) || []);
+            const response = await fetchAPI("products?limit=1000");
+            setProducts((response.data as Product[]) || (response.products as Product[]) || []);
         } catch {
             console.error("Error loading products");
         }
@@ -101,8 +101,8 @@ export default function PurchasesPage() {
 
     const loadRequests = useCallback(async () => {
         try {
-            const response = await fetchAPI("/api/requests?status=pending");
-            setRequests((response.requests as PurchaseRequest[]) || []);
+            const response = await fetchAPI("requests?status=pending");
+            setRequests((response.data as PurchaseRequest[]) || (response.requests as PurchaseRequest[]) || []);
         } catch {
             console.error("Error loading requests");
         }
@@ -199,13 +199,13 @@ export default function PurchasesPage() {
 
         try {
             if (selectedPurchase) {
-                await fetchAPI(`/api/purchases/${selectedPurchase.id}`, {
+                await fetchAPI(`purchases`, {
                     method: "PUT",
-                    body: JSON.stringify(payload),
+                    body: JSON.stringify({ ...payload, id: selectedPurchase.id }),
                 });
                 showToast("تم تحديث المشترى بنجاح", "success");
             } else {
-                await fetchAPI("/api/purchases", {
+                await fetchAPI("purchases", {
                     method: "POST",
                     body: JSON.stringify(payload),
                 });
@@ -228,7 +228,7 @@ export default function PurchasesPage() {
         if (!deleteId) return;
 
         try {
-            await fetchAPI(`/api/purchases/${deleteId}`, { method: "DELETE" });
+            await fetchAPI(`purchases?id=${deleteId}`, { method: "DELETE" });
             showToast("تم حذف المشترى", "success");
             loadPurchases(currentPage, searchTerm);
             loadProducts();
@@ -259,7 +259,7 @@ export default function PurchasesPage() {
 
     const markRequestDone = async (requestId: number) => {
         try {
-            await fetchAPI(`/api/requests/${requestId}`, {
+            await fetchAPI(`requests?id=${requestId}`, {
                 method: "PUT",
                 body: JSON.stringify({ status: "done" }),
             });

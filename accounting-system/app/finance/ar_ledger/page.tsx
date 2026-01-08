@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { MainLayout, PageHeader } from "@/components/layout";
 import { Table, Dialog, ConfirmDialog, showToast, Column, showAlert } from "@/components/ui";
 import { fetchAPI } from "@/lib/api";
-import { formatCurrency, formatDate, parseNumber } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime, parseNumber } from "@/lib/utils";
 import { User, getStoredUser, checkAuth } from "@/lib/auth";
 import { getIcon } from "@/lib/icons";
 import { generateInvoiceHTML, getSettings } from "@/lib/invoice-utils";
@@ -80,6 +80,7 @@ function ARLedgerPageContent() {
     total_pages: 0,
     current_page: 0,
   });
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -335,8 +336,8 @@ function ARLedgerPageContent() {
       header: "التاريخ",
       dataLabel: "التاريخ",
       render: (item) => (
-        <span style={{ fontSize: "0.9em", direction: "ltr", textAlign: "right" }}>
-          {new Date(item.transaction_date).toLocaleString("ar-EG")}
+        <span style={{ fontSize: "0.9em" }}>
+          {formatDateTime(item.transaction_date)}
         </span>
       ),
     },

@@ -7,6 +7,7 @@ import { fetchAPI } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { User, getStoredUser, getStoredPermissions, Permission, canAccess } from "@/lib/auth";
 import { getIcon } from "@/lib/icons";
+import { Pagination as PaginationType } from "@/lib/types";
 
 interface Category {
     id: number;
@@ -76,10 +77,10 @@ export default function ProductsPage() {
         try {
             setIsLoading(true);
             const response = await fetchAPI(
-                `/api/products?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
+                `products?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
             );
-            setProducts((response.products as Product[]) || []);
-            setTotalPages(Math.ceil((Number(response.total) || 0) / itemsPerPage));
+            setProducts((response.data as Product[]) || []);
+            setTotalPages((response.pagination as PaginationType)?.total_pages || 1);
             setCurrentPage(page);
         } catch {
             showToast("خطأ في تحميل المنتجات", "error");
@@ -90,8 +91,8 @@ export default function ProductsPage() {
 
     const loadCategories = useCallback(async () => {
         try {
-            const response = await fetchAPI("/api/categories");
-            setCategories((response.categories as Category[]) || []);
+            const response = await fetchAPI("categories");
+            setCategories((response.data as Category[]) || (response.categories as Category[]) || []);
         } catch {
             console.error("Error loading categories");
         }
@@ -203,13 +204,13 @@ export default function ProductsPage() {
 
         try {
             if (selectedProduct) {
-                await fetchAPI(`/api/products/${selectedProduct.id}`, {
+                await fetchAPI(`products`, {
                     method: "PUT",
-                    body: JSON.stringify(payload),
+                    body: JSON.stringify({ ...payload, id: selectedProduct.id }),
                 });
                 showToast("تم تحديث المنتج بنجاح", "success");
             } else {
-                await fetchAPI("/api/products", {
+                await fetchAPI("products", {
                     method: "POST",
                     body: JSON.stringify(payload),
                 });
@@ -251,7 +252,7 @@ export default function ProductsPage() {
         if (!deleteId) return;
 
         try {
-            await fetchAPI(`/api/products/${deleteId}`, { method: "DELETE" });
+            await fetchAPI(`products?id=${deleteId}`, { method: "DELETE" });
             showToast("تم حذف المنتج", "success");
             loadProducts(currentPage, searchTerm);
         } catch {

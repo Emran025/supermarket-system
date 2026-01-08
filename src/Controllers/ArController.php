@@ -92,8 +92,15 @@ class ArController extends Controller
         $countResult = mysqli_query($this->conn, $countSql);
         $total = ($countResult && mysqli_num_rows($countResult) > 0) ? mysqli_fetch_assoc($countResult)['total'] : 0;
 
-        // Fetch
-        $sql = "SELECT * FROM ar_customers $whereClause ORDER BY name ASC LIMIT $limit OFFSET $offset";
+        // Fetch with aggregates for totals
+        $sql = "SELECT c.*, c.current_balance as balance,
+                (SELECT COALESCE(SUM(amount), 0) FROM ar_transactions WHERE customer_id = c.id AND type = 'invoice' AND is_deleted = 0) as total_debt,
+                (SELECT COALESCE(SUM(amount), 0) FROM ar_transactions WHERE customer_id = c.id AND type IN ('payment', 'return') AND is_deleted = 0) as total_paid
+                FROM ar_customers c 
+                $whereClause 
+                ORDER BY c.name ASC 
+                LIMIT $limit OFFSET $offset";
+                
         $result = mysqli_query($this->conn, $sql);
 
         $customers = [];

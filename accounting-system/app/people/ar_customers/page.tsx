@@ -2,20 +2,24 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { MainLayout, PageHeader } from "@/components/layout";
-import { Table, Dialog, ConfirmDialog, showToast, Column } from "@/components/ui";
+import { Table, Dialog, ConfirmDialog, showToast, Column, Pagination } from "@/components/ui";
 import { fetchAPI } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { User, getStoredUser, getStoredPermissions, Permission, canAccess } from "@/lib/auth";
 import { getIcon } from "@/lib/icons";
+import { Pagination as PaginationType } from "@/lib/types";
 
 interface Customer {
   id: number;
   name: string;
   phone?: string;
+  email?: string;
   address?: string;
+  tax_number?: string;
   total_debt: number;
   total_paid: number;
   balance: number;
+  current_balance?: number;
   created_at: string;
 }
 
@@ -39,7 +43,9 @@ export default function ARCustomersPage() {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
+    email: "",
     address: "",
+    tax_number: "",
   });
 
   const itemsPerPage = 10;
@@ -48,10 +54,11 @@ export default function ARCustomersPage() {
     try {
       setIsLoading(true);
       const response = await fetchAPI(
-        `/api/customers?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
+        `ar_customers?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
       );
-      setCustomers(response.customers as Customer[] || []);
-      setTotalPages(Math.ceil((response.total as number || 0) / itemsPerPage));
+      setCustomers(response.data as Customer[] || []);
+
+      setTotalPages((response.pagination as PaginationType)?.total_pages || 1);
       setCurrentPage(page);
     } catch {
       showToast("خطأ في تحميل العملاء", "error");
@@ -79,7 +86,9 @@ export default function ARCustomersPage() {
     setFormData({
       name: "",
       phone: "",
+      email: "",
       address: "",
+      tax_number: "",
     });
     setFormDialog(true);
   };
@@ -89,7 +98,9 @@ export default function ARCustomersPage() {
     setFormData({
       name: customer.name,
       phone: customer.phone || "",
+      email: customer.email || "",
       address: customer.address || "",
+      tax_number: customer.tax_number || "",
     });
     setFormDialog(true);
   };
@@ -107,13 +118,13 @@ export default function ARCustomersPage() {
 
     try {
       if (selectedCustomer) {
-        await fetchAPI(`/api/customers/${selectedCustomer.id}`, {
+        await fetchAPI(`ar_customers`, {
           method: "PUT",
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ ...formData, id: selectedCustomer.id }),
         });
         showToast("تم تحديث العميل بنجاح", "success");
       } else {
-        await fetchAPI("/api/customers", {
+        await fetchAPI("ar_customers", {
           method: "POST",
           body: JSON.stringify(formData),
         });
@@ -135,7 +146,7 @@ export default function ARCustomersPage() {
     if (!deleteId) return;
 
     try {
-      await fetchAPI(`/api/customers/${deleteId}`, { method: "DELETE" });
+      await fetchAPI(`ar_customers?id=${deleteId}`, { method: "DELETE" });
       showToast("تم حذف العميل", "success");
       loadCustomers(currentPage, searchTerm);
     } catch {
@@ -268,6 +279,26 @@ export default function ARCustomersPage() {
         </div>
 
         <div className="form-group">
+          <label htmlFor="email">البريد الإلكتروني</label>
+          <input
+            type="email"
+            id="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="tax_number">الرقم الضريبي</label>
+          <input
+            type="text"
+            id="tax_number"
+            value={formData.tax_number}
+            onChange={(e) => setFormData({ ...formData, tax_number: e.target.value })}
+          />
+        </div>
+
+        <div className="form-group">
           <label htmlFor="address">العنوان</label>
           <textarea
             id="address"
@@ -295,6 +326,14 @@ export default function ARCustomersPage() {
               <div>
                 <p className="stat-label">الهاتف</p>
                 <p>{selectedCustomer.phone || "-"}</p>
+              </div>
+              <div>
+                <p className="stat-label">البريد الإلكتروني</p>
+                <p>{selectedCustomer.email || "-"}</p>
+              </div>
+              <div>
+                <p className="stat-label">الرقم الضريبي</p>
+                <p>{selectedCustomer.tax_number || "-"}</p>
               </div>
               <div style={{ gridColumn: "span 2" }}>
                 <p className="stat-label">العنوان</p>
