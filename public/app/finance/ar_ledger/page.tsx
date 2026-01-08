@@ -20,7 +20,6 @@ interface LedgerTransaction {
   is_deleted: boolean;
   reference_type?: string;
   reference_id?: number;
-  
 }
 
 interface Pagination {
@@ -45,6 +44,7 @@ interface Customer {
 interface Invoice {
   id: number;
   invoice_number: string;
+  voucher_number?: string;
   created_at: string;
   payment_type: string;
   customer_name?: string;
@@ -52,6 +52,9 @@ interface Invoice {
   customer_tax?: string;
   total_amount: number;
   amount_paid?: number;
+  vat_amount?: number;
+  vat_rate?: number;
+  discount_amount?: number;
   items: Array<{
     product_name: string;
     quantity: number;

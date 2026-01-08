@@ -31,11 +31,12 @@ class BatchController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate($limit, ['*'], 'page', $page);
 
-        return $this->successResponse($batches->items(), null, [
-            'total' => $batches->total(),
-            'current_page' => $batches->currentPage(),
-            'last_page' => $batches->lastPage(),
-        ]);
+        return $this->paginatedResponse(
+            $batches->items(),
+            $batches->total(),
+            $batches->currentPage(),
+            $batches->perPage()
+        );
     }
 
     public function store(Request $request): JsonResponse

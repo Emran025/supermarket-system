@@ -10,19 +10,17 @@ return new class extends Migration
     {
         Schema::create('prepayments', function (Blueprint $table) {
             $table->id();
-            $table->date('prepayment_date');
+            $table->string('description', 255);
             $table->decimal('total_amount', 15, 2);
-            $table->integer('months');
-            $table->text('description')->nullable();
-            $table->string('expense_account_code', 20)->nullable();
-            $table->decimal('amortized_amount', 15, 2)->default(0);
+            $table->date('payment_date')->index();
+            $table->string('expense_account_code', 20);
+            $table->integer('amortization_periods')->default(1);
+            $table->decimal('amortized_amount', 15, 2)->default(0.00);
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('prepayments');

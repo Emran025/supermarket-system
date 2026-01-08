@@ -24,12 +24,14 @@ class ProductsController extends Controller
         $page = max(1, (int)$request->input('page', 1));
         $perPage = min(100, max(1, (int)$request->input('per_page', 20)));
 
-        $query = Product::with('createdBy');
+        $query = Product::with(['createdBy', 'category']);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%$search%")
-                  ->orWhere('category', 'like', "%$search%")
+                  ->orWhereHas('category', function ($mq) use ($search) {
+                       $mq->where('name', 'like', "%$search%");
+                  })
                   ->orWhere('description', 'like', "%$search%")
                   ->orWhere('id', 'like', "%$search%");
             });
@@ -43,6 +45,7 @@ class ProductsController extends Controller
             ->map(function ($product) use ($includePurchasePrice) {
                 $data = $product->toArray();
                 $data['creator_name'] = $product->createdBy?->username;
+                $data['category_name'] = $product->category?->name;
 
                 if ($includePurchasePrice) {
                     $latestPurchase = $product->purchases()

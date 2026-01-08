@@ -39,7 +39,21 @@ class ArController extends Controller
         $customers = $query->orderBy('name')
             ->skip(($page - 1) * $perPage)
             ->take($perPage)
-            ->get();
+            ->withSum(['invoices as total_debt' => function ($query) {
+                $query->where('payment_type', 'credit');
+            }], 'total_amount')
+            ->withSum(['invoices as invoice_paid' => function ($query) {
+                $query->where('payment_type', 'credit');
+            }], 'amount_paid')
+            ->get()
+            ->map(function ($customer) {
+                // total_paid is sum of invoice_paid + any general payments (if they exist)
+                // But simplified: total_paid = total_debt - current_balance
+                $customer->total_debt = $customer->total_debt ?? 0;
+                $customer->balance = $customer->current_balance;
+                $customer->total_paid = max(0, $customer->total_debt - $customer->balance);
+                return $customer;
+            });
 
         return $this->paginatedResponse($customers, $total, $page, $perPage);
     }
@@ -130,7 +144,12 @@ class ArController extends Controller
         $transactions = $query->orderBy('transaction_date', 'desc')
             ->skip(($page - 1) * $perPage)
             ->take($perPage)
-            ->get();
+            ->get()
+            ->map(function ($transaction) {
+               $data = $transaction->toArray();
+               $data['created_by'] = $transaction->createdBy ? $transaction->createdBy->username : null;
+               return $data;
+            });
 
         return response()->json([
             'success' => true,

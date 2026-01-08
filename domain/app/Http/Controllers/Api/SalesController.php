@@ -109,20 +109,9 @@ class SalesController extends Controller
         $invoice = Invoice::with(['items.product', 'user', 'customer'])
             ->findOrFail($id);
 
-        $items = $invoice->items->map(function ($item) {
-            return [
-                'product_id' => $item->product_id,
-                'product_name' => $item->product->name,
-                'quantity' => $item->quantity,
-                'unit_price' => $item->unit_price,
-                'subtotal' => $item->subtotal,
-            ];
-        });
-
         return response()->json([
             'success' => true,
-            'invoice' => $invoice->toArray(),
-            'items' => $items,
+            'data' => $invoice,
         ]);
     }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { MainLayout, PageHeader } from "@/components/layout";
-import { Table, Dialog, ConfirmDialog, showToast, Column, showAlert } from "@/components/ui";
+import { Table, Dialog, ConfirmDialog, showToast, Column, showAlert, NumberInput } from "@/components/ui";
 import { fetchAPI } from "@/lib/api";
 import { formatCurrency, formatDate, formatDateTime, parseNumber } from "@/lib/utils";
 import { User, getStoredUser, canAccess, getStoredPermissions, Permission, checkAuth } from "@/lib/auth";
@@ -42,6 +42,7 @@ interface Pagination {
 interface Invoice {
     id: number;
     invoice_number: string;
+    voucher_number?: string;
     total_amount: number;
     item_count?: number;
     salesperson_name?: string;
@@ -55,6 +56,9 @@ interface Invoice {
     payment_type: string;
     discount_amount?: number;
     subtotal?: number;
+    vat_amount?: number;
+    vat_rate?: number;
+    amount_paid?: number;
 }
 
 export default function SalesPage() {
@@ -572,31 +576,23 @@ export default function SalesPage() {
 
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label htmlFor="item-quantity">الكمية *</label>
-                                    <input
-                                        type="number"
+                                    <NumberInput
                                         id="item-quantity"
-                                        min="1"
+                                        label="الكمية *"
+                                        min={1}
                                         value={quantity}
-                                        onChange={(e) => {
-                                            setQuantity(e.target.value);
-                                            calculateSubtotal();
-                                        }}
+                                        onChange={(val) => setQuantity(val)}
                                         required
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label htmlFor="item-unit-price">سعر بيع الوحدة *</label>
-                                    <input
-                                        type="number"
+                                    <NumberInput
                                         id="item-unit-price"
-                                        step="0.01"
-                                        min="0"
+                                        label="سعر بيع الوحدة *"
+                                        min={0}
+                                        step={0.01}
                                         value={unitPrice}
-                                        onChange={(e) => {
-                                            setUnitPrice(e.target.value);
-                                            calculateSubtotal();
-                                        }}
+                                        onChange={(val) => setUnitPrice(val)}
                                         required
                                     />
                                 </div>
@@ -665,13 +661,8 @@ export default function SalesPage() {
                             </table>
                         </div>
 
-                        <div className="sales-summary-bar">
-                            <div className="summary-stat">
-                                <span className="stat-label">مجموع العناصر</span>
-                                <span className="stat-value">{formatCurrency(itemsTotal)}</span>
-                            </div>
-                            
-                            <div className="summary-stat">
+                        <div className="invoice-adjustments">
+                            <div className="summary-stat" style={{ width: "250px" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
                                     <span className="stat-label">الخصم</span>
                                     <div className="discount-type-toggle">
@@ -703,7 +694,14 @@ export default function SalesPage() {
                                     )}
                                 </div>
                             </div>
+                        </div>
 
+                        <div className="sales-summary-bar">
+                            <div className="summary-stat">
+                                <span className="stat-label">مجموع العناصر</span>
+                                <span className="stat-value">{formatCurrency(itemsTotal)}</span>
+                            </div>
+                            
                             <div className="summary-stat">
                                 <span className="stat-label">إجمالي الفاتورة (شامل الضريبة)</span>
                                 <span id="total-amount" className="stat-value highlight">

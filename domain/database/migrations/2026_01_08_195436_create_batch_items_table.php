@@ -6,26 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('batch_items', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('batch_id');
-            $table->json('item_data');
-            $table->string('status', 20)->default('pending'); // pending, success, error
+            $table->integer('item_index');
+            $table->string('status', 20)->default('pending')->comment('pending, success, error')->index();
+            $table->unsignedBigInteger('reference_id')->nullable()->comment('ID of created record');
+            $table->string('voucher_number', 50)->nullable();
             $table->text('error_message')->nullable();
             $table->timestamps();
-
-            $table->foreign('batch_id')->references('id')->on('batch_processing')->onDelete('cascade');
+            
+            $table->foreignId('batch_id')->constrained('batch_processing')->onDelete('cascade')->index();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('batch_items');

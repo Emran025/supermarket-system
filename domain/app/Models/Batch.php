@@ -11,29 +11,31 @@ class Batch extends Model
     protected $table = 'batch_processing';
 
     protected $fillable = [
-        'batch_name',
         'batch_type',
         'description',
         'status',
         'total_items',
-        'started_at',
-        'completed_at',
+        'successful_items',
+        'failed_items',
         'created_by',
+        'completed_at'
     ];
 
     protected $casts = [
-        'started_at' => 'datetime',
-        'completed_at' => 'datetime',
         'total_items' => 'integer',
+        'successful_items' => 'integer',
+        'failed_items' => 'integer',
+        'completed_at' => 'datetime',
     ];
-
-    public function items(): HasMany
-    {
-        return $this->hasMany(BatchItem::class, 'batch_id');
-    }
 
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(BatchItem::class, 'batch_id');
+    }
 }
+

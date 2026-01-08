@@ -1,4 +1,5 @@
 export { Toast, ToastContainer, showToast, setToastHandler } from "./Toast";
+export * from "./NumberInput";
 export { Alert, showAlert } from "./Alert";
 export type { AlertType } from "./Alert";
 export type { ToastType } from "./Toast";

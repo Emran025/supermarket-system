@@ -22,6 +22,7 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('supplier_id')->nullable()->constrained('ap_suppliers')->onDelete('set null');
             $table->string('voucher_number', 50)->nullable()->index();
+            $table->text('notes')->nullable();
             $table->decimal('vat_rate', 5, 2)->default(0.00);
             $table->decimal('vat_amount', 10, 2)->default(0.00);
             $table->string('approval_status', 20)->default('approved'); // pending, approved, rejected

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { MainLayout, PageHeader } from "@/components/layout";
-import { Table, Dialog, ConfirmDialog, showToast, Column, showAlert } from "@/components/ui";
+import { Table, Dialog, ConfirmDialog, showToast, Column, showAlert, NumberInput } from "@/components/ui";
 import { fetchAPI } from "@/lib/api";
 import { formatCurrency, formatDate, formatDateTime, parseNumber } from "@/lib/utils";
 import { User, getStoredUser, canAccess, getStoredPermissions, Permission, checkAuth } from "@/lib/auth";
@@ -644,31 +644,23 @@ export default function DeferredSalesPage() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label htmlFor="item-quantity">الكمية *</label>
-                    <input
-                      type="number"
+                    <NumberInput
                       id="item-quantity"
-                      min="1"
+                      label="الكمية *"
+                      min={1}
                       value={quantity}
-                      onChange={(e) => {
-                        setQuantity(e.target.value);
-                        calculateSubtotal();
-                      }}
+                      onChange={(val) => setQuantity(val)}
                       required
                     />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="item-unit-price">سعر بيع الوحدة *</label>
-                    <input
-                      type="number"
+                    <NumberInput
                       id="item-unit-price"
-                      step="0.01"
-                      min="0"
+                      label="سعر بيع الوحدة *"
+                      min={0}
+                      step={0.01}
                       value={unitPrice}
-                      onChange={(e) => {
-                        setUnitPrice(e.target.value);
-                        calculateSubtotal();
-                      }}
+                      onChange={(val) => setUnitPrice(val)}
                       required
                     />
                   </div>
@@ -805,45 +797,47 @@ export default function DeferredSalesPage() {
                 </table>
               </div>
 
+                <div className="invoice-adjustments">
+                    <div className="summary-stat" style={{ width: "250px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
+                            <span className="stat-label">الخصم</span>
+                            <div className="discount-type-toggle">
+                            <button 
+                                className={discountType === "fixed" ? "active" : ""} 
+                                onClick={() => setDiscountType("fixed")}
+                                type="button"
+                            >$</button>
+                            <button 
+                                className={discountType === "percent" ? "active" : ""} 
+                                onClick={() => setDiscountType("percent")}
+                                type="button"
+                            >%</button>
+                            </div>
+                        </div>
+                        <div style={{ position: "relative" }}>
+                            <input
+                            type="number"
+                            value={discountValue}
+                            onChange={(e) => setDiscountValue(e.target.value)}
+                            className="minimal-input"
+                            style={{ width: "100%", textAlign: "center", paddingBottom: "4px" }}
+                            min="0"
+                            />
+                            {calculatedDiscount() > 0 && (
+                            <div style={{ fontSize: "10px", color: "var(--text-secondary)", position: "absolute", bottom: "-14px", width: "100%", textAlign: "center" }}>
+                                مبلغ الخصم: {formatCurrency(calculatedDiscount())}
+                            </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
               <div className="sales-summary-bar">
                 <div className="summary-stat">
                   <span className="stat-label">مجموع العناصر</span>
                   <span className="stat-value">{formatCurrency(itemsTotal)}</span>
                 </div>
                 
-                <div className="summary-stat">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
-                    <span className="stat-label">الخصم</span>
-                    <div className="discount-type-toggle">
-                      <button 
-                        className={discountType === "fixed" ? "active" : ""} 
-                        onClick={() => setDiscountType("fixed")}
-                        type="button"
-                      >$</button>
-                      <button 
-                        className={discountType === "percent" ? "active" : ""} 
-                        onClick={() => setDiscountType("percent")}
-                        type="button"
-                      >%</button>
-                    </div>
-                  </div>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type="number"
-                      value={discountValue}
-                      onChange={(e) => setDiscountValue(e.target.value)}
-                      className="minimal-input"
-                      style={{ width: "100%", textAlign: "center", paddingBottom: "4px" }}
-                      min="0"
-                    />
-                    {calculatedDiscount() > 0 && (
-                      <div style={{ fontSize: "10px", color: "var(--text-secondary)", position: "absolute", bottom: "-14px", width: "100%", textAlign: "center" }}>
-                        مبلغ الخصم: {formatCurrency(calculatedDiscount())}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <div className="summary-stat">
                   <span className="stat-label">المبلغ الإجمالي</span>
                   <span id="total-amount" className="stat-value highlight">

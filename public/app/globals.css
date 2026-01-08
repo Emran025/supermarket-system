@@ -2174,3 +2174,101 @@ body.sidebar-is-collapsed .sidebar-toggle-btn {
     grid-template-columns: 1fr;
   }
 }
+
+/* No Spinner Utility */
+.no-spinner::-webkit-inner-spin-button,
+.no-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner {
+  -moz-appearance: textfield;
+}
+
+/* Number Input Component */
+.number-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.number-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.number-input-wrapper input {
+  padding-right: 2.5rem !important; /* Make room for spinners */
+}
+
+/* Custom Spinners (Hidden by default, visible on hover/focus) */
+.custom-spinners {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none; /* Let clicks pass through if hidden */
+  z-index: 5;
+}
+
+.number-input-wrapper:hover .custom-spinners,
+.number-input-wrapper:focus-within .custom-spinners {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.spinner-btn {
+  width: 20px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 8px;
+  transition: all 0.1s;
+}
+
+.spinner-btn:hover {
+  background: var(--primary-subtle);
+  color: var(--primary-color);
+  border-color: var(--primary-light);
+}
+
+.spinner-btn svg {
+  width: 8px;
+  height: 8px;
+}
+
+/* Invoice Adjustments Section (Task 1) */
+.invoice-adjustments {
+  background: var(--surface-white);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  align-items: center;
+  margin-bottom: -1px; /* Overlap border */
+  z-index: 1;
+  position: relative;
+}
+
+.sales-summary-bar {
+  /* Previously defined, but ensuring it connects well */
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
+  margin-top: 0 !important;
+  border-top: 1px solid var(--border-color);
+}

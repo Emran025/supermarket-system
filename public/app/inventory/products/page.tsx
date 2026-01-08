@@ -18,19 +18,26 @@ interface Product {
     id: number;
     name: string;
     barcode: string;
-    category_id: number;
+    category_id: number | null;
     category_name?: string;
-    purchase_price: number;
-    selling_price: number;
-    stock: number;
-    min_stock: number;
-    unit_type: string;
-    units_per_package: number;
-    package_price: number;
-    profit_margin: number;
+    unit_price: number;
+    minimum_profit_margin: number;
+    stock_quantity: number;
+    unit_name: string;
+    items_per_unit: number;
+    sub_unit_name: string | null;
     description?: string;
-    expiry_date?: string;
     created_at: string;
+    // Mapped for UI
+    selling_price?: number; 
+    purchase_price?: number;
+    stock?: number;
+    min_stock?: number;
+    unit_type?: string;
+    units_per_package?: number;
+    package_price?: number;
+    profit_margin?: number;
+    expiry_date?: string;
 }
 
 export default function ProductsPage() {
@@ -79,7 +86,25 @@ export default function ProductsPage() {
             const response = await fetchAPI(
                 `products?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
             );
-            setProducts((response.data as Product[]) || []);
+            
+            // Map backend fields to frontend interface
+            const rawProducts = (response.data as any[]) || [];
+            const mappedProducts: Product[] = rawProducts.map(p => ({
+                ...p,
+                selling_price: parseFloat(p.unit_price) || 0,
+                purchase_price: parseFloat(p.latest_purchase_price) || 0, // Assuming backend sends this or we default 0
+                stock: p.stock_quantity || 0,
+                min_stock: 10, // Default or fetch if available
+                unit_type: p.unit_name === 'كرتون' ? 'ctn' : 'piece', // Naive mapping
+                items_per_unit: p.items_per_unit || 1,
+                sub_unit_name: p.sub_unit_name || null,
+                profit_margin: parseFloat(p.minimum_profit_margin) || 0,
+                // Ensure optional fields have values for UI
+                description: p.description || '',
+                expiry_date: null // Add if backend supports
+            }));
+
+            setProducts(mappedProducts);
             setTotalPages((response.pagination as PaginationType)?.total_pages || 1);
             setCurrentPage(page);
         } catch {
@@ -138,17 +163,17 @@ export default function ProductsPage() {
         setFormData({
             name: product.name,
             barcode: product.barcode || "",
-            category_id: String(product.category_id),
-            purchase_price: String(product.purchase_price),
-            selling_price: String(product.selling_price),
-            stock: String(product.stock),
-            min_stock: String(product.min_stock),
-            unit_type: product.unit_type,
-            units_per_package: String(product.units_per_package),
+            category_id: String(product.category_id || ""),
+            purchase_price: String(product.purchase_price || 0),
+            selling_price: String(product.selling_price || 0),
+            stock: String(product.stock || 0),
+            min_stock: String(product.min_stock || 10),
+            unit_type: product.unit_type || "piece",
+            units_per_package: String(product.units_per_package || 1),
             package_price: String(product.package_price || ""),
             profit_margin: String(product.profit_margin || ""),
             description: product.description || "",
-            expiry_date: product.expiry_date?.split("T")[0] || "",
+            expiry_date: product.expiry_date ? String(product.expiry_date).split("T")[0] : "",
         });
         setProductDialog(true);
     };
@@ -190,16 +215,15 @@ export default function ProductsPage() {
             name: formData.name,
             barcode: formData.barcode,
             category_id: parseInt(formData.category_id),
-            purchase_price: parseFloat(formData.purchase_price),
-            selling_price: parseFloat(formData.selling_price),
-            stock: parseInt(formData.stock) || 0,
-            min_stock: parseInt(formData.min_stock) || 10,
-            unit_type: formData.unit_type,
-            units_per_package: parseInt(formData.units_per_package) || 1,
-            package_price: parseFloat(formData.package_price) || 0,
-            profit_margin: parseFloat(formData.profit_margin) || 0,
+            // Map UI naming back to Backend naming
+            unit_price: parseFloat(formData.selling_price),
+            minimum_profit_margin: parseFloat(formData.profit_margin) || 0,
+            stock_quantity: parseInt(formData.stock) || 0,
+            unit_name: formData.unit_type === 'ctn' ? 'كرتون' : 'حبة',
+            items_per_unit: parseInt(formData.units_per_package) || 1,
+            sub_unit_name: formData.unit_type === 'ctn' ? 'حبة' : null,
             description: formData.description,
-            expiry_date: formData.expiry_date || null,
+            // expiry_date: formData.expiry_date || null, // Backend doesn't seem to support this yet
         };
 
         try {
@@ -261,9 +285,12 @@ export default function ProductsPage() {
     };
 
     const getStockStatus = (product: Product) => {
-        if (product.stock <= 0) {
+        const stock = product.stock || 0;
+        const minStock = product.min_stock || 0;
+        
+        if (stock <= 0) {
             return <span className="badge badge-danger">نفذ</span>;
-        } else if (product.stock <= product.min_stock) {
+        } else if (stock <= minStock) {
             return <span className="badge badge-warning">منخفض</span>;
         }
         return <span className="badge badge-success">متوفر</span>;

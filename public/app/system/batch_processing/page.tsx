@@ -81,10 +81,10 @@ export default function BatchProcessingPage() {
       setUser(storedUser);
       await loadBatches();
 
-      // Auto-refresh every 5 seconds
+      // Auto-refresh every 60 seconds
       const interval = setInterval(() => {
         loadBatches(currentPage);
-      }, 5000);
+      }, 30000);
 
       return () => clearInterval(interval);
     };

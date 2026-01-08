@@ -54,14 +54,17 @@ export default function ARCustomersPage() {
     try {
       setIsLoading(true);
       const response = await fetchAPI(
-        `ar_customers?page=${page}&limit=${itemsPerPage}&search=${encodeURIComponent(search)}`
+        `ar_customers?page=${page}&per_page=${itemsPerPage}&search=${encodeURIComponent(search)}`
       );
-      setCustomers(response.data as Customer[] || []);
-
-      setTotalPages((response.pagination as PaginationType)?.total_pages || 1);
-      setCurrentPage(page);
+      if (response.success) {
+        setCustomers(response.data as Customer[] || []);
+        setTotalPages((response.pagination as PaginationType)?.total_pages || 1);
+        setCurrentPage(page);
+      } else {
+        showToast(response.message || "خطأ في تحميل العملاء", "error");
+      }
     } catch {
-      showToast("خطأ في تحميل العملاء", "error");
+      showToast("خطأ في الاتصال بالخادم", "error");
     } finally {
       setIsLoading(false);
     }
@@ -118,22 +121,32 @@ export default function ARCustomersPage() {
 
     try {
       if (selectedCustomer) {
-        await fetchAPI(`ar_customers`, {
+        const response = await fetchAPI(`ar_customers`, {
           method: "PUT",
           body: JSON.stringify({ ...formData, id: selectedCustomer.id }),
         });
-        showToast("تم تحديث العميل بنجاح", "success");
+        if (response.success) {
+          showToast("تم تحديث العميل بنجاح", "success");
+        } else {
+          showToast(response.message || "خطأ في تحديث العميل", "error");
+          return;
+        }
       } else {
-        await fetchAPI("ar_customers", {
+        const response = await fetchAPI("ar_customers", {
           method: "POST",
           body: JSON.stringify(formData),
         });
-        showToast("تمت إضافة العميل بنجاح", "success");
+        if (response.success) {
+          showToast("تمت إضافة العميل بنجاح", "success");
+        } else {
+          showToast(response.message || "خطأ في إضافة العميل", "error");
+          return;
+        }
       }
       setFormDialog(false);
-      loadCustomers(currentPage, searchTerm);
+      loadCustomers(1, searchTerm); // Use page 1 to see new/updated item
     } catch {
-      showToast("خطأ في حفظ العميل", "error");
+      showToast("خطأ في الاتصال بالخادم", "error");
     }
   };
 
@@ -146,11 +159,15 @@ export default function ARCustomersPage() {
     if (!deleteId) return;
 
     try {
-      await fetchAPI(`ar_customers?id=${deleteId}`, { method: "DELETE" });
-      showToast("تم حذف العميل", "success");
-      loadCustomers(currentPage, searchTerm);
+      const response = await fetchAPI(`ar_customers?id=${deleteId}`, { method: "DELETE" });
+      if (response.success) {
+        showToast("تم حذف العميل", "success");
+        loadCustomers(currentPage, searchTerm);
+      } else {
+        showToast(response.message || "خطأ في حذف العميل", "error");
+      }
     } catch {
-      showToast("خطأ في حذف العميل", "error");
+      showToast("خطأ في الاتصال بالخادم", "error");
     }
   };
 

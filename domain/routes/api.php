@@ -58,6 +58,7 @@ Route::middleware(['api.auth'])->group(function () {
     Route::get('/requests', [PurchasesController::class, 'requests'])->name('api.requests.index');
     Route::post('/requests', [PurchasesController::class, 'storeRequest'])->name('api.requests.store');
     Route::put('/requests', [PurchasesController::class, 'updateRequest'])->name('api.requests.update');
+    Route::post('/purchases/approve', [PurchasesController::class, 'approve'])->name('api.purchases.approve');
 
     // AR Customers & Ledger
     Route::get('/ar_customers', [ArController::class, 'customers'])->name('api.ar_customers.index');
@@ -99,6 +100,7 @@ Route::middleware(['api.auth'])->group(function () {
     Route::get('/reports/cash_flow', [ReportsController::class, 'cashFlow'])->name('api.reports.cash_flow');
     Route::get('/reports/aging_receivables', [ReportsController::class, 'agingReceivables'])->name('api.reports.aging_receivables');
     Route::get('/reports/aging_payables', [ReportsController::class, 'agingPayables'])->name('api.reports.aging_payables');
+    Route::get('/reports/comparative', [ReportsController::class, 'comparative'])->name('api.reports.comparative');
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('api.dashboard');
@@ -110,6 +112,9 @@ Route::middleware(['api.auth'])->group(function () {
     Route::put('/settings/store', [SettingsController::class, 'updateStoreSettings'])->name('api.settings.store.update');
     Route::get('/settings/invoice', [SettingsController::class, 'getInvoiceSettings'])->name('api.settings.invoice');
     Route::put('/settings/invoice', [SettingsController::class, 'updateInvoiceSettings'])->name('api.settings.invoice.update');
+
+    // Audit Logs
+    Route::get('/audit-logs', [\App\Http\Controllers\Api\AuditLogController::class, 'index'])->name('api.audit_logs.index');
 
     // Users
     Route::get('/users', [UsersController::class, 'index'])->name('api.users.index');

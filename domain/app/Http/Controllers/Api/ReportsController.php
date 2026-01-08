@@ -45,6 +45,25 @@ class ReportsController extends Controller
 
         // Get all equity accounts
         $equity = $this->getAccountTypeDetails('Equity', $asOfDate);
+        
+        // Calculate Current Net Income (Revenue - Expenses) to ensure balance
+        // This is necessary because Revenue/Expenses are part of Equity (Retained Earnings) but sit in their own accounts until closing.
+        $revenues = $this->getAccountTypeDetails('Revenue', $asOfDate);
+        $expenses = $this->getAccountTypeDetails('Expense', $asOfDate);
+        
+        $totalRevenue = collect($revenues)->sum('balance');
+        $totalExpenses = collect($expenses)->sum('balance');
+        $netIncome = $totalRevenue - $totalExpenses;
+
+        // Add Net Income to Equity as a distinct line item
+        if ($netIncome != 0) {
+            $equity[] = [
+                'account_code' => '999999', // Virtual code
+                'account_name' => 'Current Net Income / (Loss) - صافي الربح/الخسارة للفترة',
+                'balance' => $netIncome,
+            ];
+        }
+
         $totalEquity = collect($equity)->sum('balance');
 
         return response()->json([
@@ -120,12 +139,20 @@ class ReportsController extends Controller
         $endDate = $request->input('end_date', now()->format('Y-m-d'));
 
         // Get cash account
-        $cashAccount = ChartOfAccount::where('account_code', 'like', '1010%')
+        $cashAccount = ChartOfAccount::where('account_code', 'like', '1110%')
             ->orWhere('account_name', 'like', '%Cash%')
+            ->orWhere('account_name', 'like', '%النقدية%')
             ->first();
 
         if (!$cashAccount) {
-            return $this->errorResponse('Cash account not found', 404);
+            // Fallback to finding any asset account that looks like cash if specific codes fail
+            $cashAccount = ChartOfAccount::where('account_type', 'Asset')
+                ->where('account_name', 'like', '%cash%')
+                ->first();
+                
+            if (!$cashAccount) {
+                 return $this->errorResponse('Cash account not found', 404);
+            }
         }
 
         // Operating activities (from revenue and expense accounts)
@@ -319,6 +346,70 @@ class ReportsController extends Controller
             'data' => $aging,
             'totals' => $totals,
         ]);
+    }
+
+    /**
+     * Get Comparative Financial Report
+     */
+    public function comparative(Request $request): JsonResponse
+    {
+        PermissionService::requirePermission('reports', 'view');
+
+        $currentStart = $request->input('current_start', now()->startOfMonth()->format('Y-m-d'));
+        $currentEnd = $request->input('current_end', now()->format('Y-m-d'));
+        $previousStart = $request->input('previous_start');
+        $previousEnd = $request->input('previous_end');
+
+        // Calculate current period metrics
+        $currentRevenue = collect($this->getAccountTypeDetails('Revenue', $currentEnd, $currentStart))->sum('balance');
+        $currentExpenses = collect($this->getAccountTypeDetails('Expense', $currentEnd, $currentStart))->sum('balance');
+        $currentNetProfit = $currentRevenue - $currentExpenses;
+
+        $report = [
+            'current_period' => [
+                'revenue' => $currentRevenue,
+                'expenses' => $currentExpenses,
+                'net_profit' => $currentNetProfit,
+            ],
+            'previous_period' => null,
+            'changes' => null,
+        ];
+
+        // Calculate previous period metrics if requested
+        if ($previousStart && $previousEnd) {
+            $prevRevenue = collect($this->getAccountTypeDetails('Revenue', $previousEnd, $previousStart))->sum('balance');
+            $prevExpenses = collect($this->getAccountTypeDetails('Expense', $previousEnd, $previousStart))->sum('balance');
+            $prevNetProfit = $prevRevenue - $prevExpenses;
+
+            $report['previous_period'] = [
+                'revenue' => $prevRevenue,
+                'expenses' => $prevExpenses,
+                'net_profit' => $prevNetProfit,
+            ];
+
+            // Calculate changes
+            $report['changes'] = [
+                'revenue' => $this->calculateChange($currentRevenue, $prevRevenue),
+                'expenses' => $this->calculateChange($currentExpenses, $prevExpenses),
+                'net_profit' => $this->calculateChange($currentNetProfit, $prevNetProfit),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $report,
+        ]);
+    }
+
+    private function calculateChange($current, $previous): array
+    {
+        $amount = $current - $previous;
+        $percentage = $previous != 0 ? ($amount / abs($previous)) * 100 : ($amount == 0 ? 0 : 100);
+        
+        return [
+            'amount' => $amount,
+            'percentage' => $percentage
+        ];
     }
 
     /**

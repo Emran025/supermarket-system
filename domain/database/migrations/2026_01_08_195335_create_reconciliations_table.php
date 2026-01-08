@@ -10,18 +10,19 @@ return new class extends Migration
     {
         Schema::create('reconciliations', function (Blueprint $table) {
             $table->id();
-            $table->date('reconciliation_date');
-            $table->decimal('bank_balance', 15, 2);
+            $table->string('account_code', 20)->index();
+            $table->date('reconciliation_date')->index();
             $table->decimal('ledger_balance', 15, 2);
+            $table->decimal('physical_balance', 15, 2);
             $table->decimal('difference', 15, 2);
+            $table->string('status', 20)->default('unreconciled')->comment('reconciled, unreconciled, adjusted')->index();
             $table->text('notes')->nullable();
+            $table->text('adjustment_notes')->nullable();
+            $table->foreignId('reconciled_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('reconciliations');

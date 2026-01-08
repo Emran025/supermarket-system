@@ -11,7 +11,7 @@ import { getIcon } from "@/lib/icons";
 interface Product {
     id: number;
     name: string;
-    stock: number;
+    stock_quantity: number;
     purchase_price: number;
 }
 
@@ -28,6 +28,10 @@ interface Purchase {
     expiry_date?: string;
     notes?: string;
     created_at: string;
+    voucher_number?: string;
+    approval_status?: string;
+    vat_rate?: number;
+    vat_amount?: number;
 }
 
 interface PurchaseRequest {
@@ -126,7 +130,7 @@ export default function PurchasesPage() {
     const productOptions: SelectOption[] = products.map((p) => ({
         value: p.id,
         label: p.name,
-        subtitle: `المخزون: ${p.stock}`,
+        subtitle: `المخزون: ${p.stock_quantity}`,
     }));
 
     const openAddDialog = () => {
@@ -190,8 +194,9 @@ export default function PurchasesPage() {
             quantity: parseInt(formData.quantity),
             unit_type: formData.unit_type,
             unit_price: parseFloat(formData.unit_price),
-            total_price: parseInt(formData.quantity) * parseFloat(formData.unit_price),
-            supplier: formData.supplier,
+            invoice_price: parseInt(formData.quantity) * parseFloat(formData.unit_price), // Backend expects invoice_price (total)
+            supplier_id: null, 
+            supplier_name: formData.supplier, // Send free text supplier name so backend can find or create
             purchase_date: formData.purchase_date,
             expiry_date: formData.expiry_date || null,
             notes: formData.notes,

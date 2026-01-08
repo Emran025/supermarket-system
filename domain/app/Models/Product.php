@@ -11,7 +11,7 @@ class Product extends Model
     protected $fillable = [
         'name',
         'description',
-        'category',
+        'category_id',
         'unit_price',
         'minimum_profit_margin',
         'stock_quantity',
@@ -36,6 +36,11 @@ class Product extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     public function purchases(): HasMany

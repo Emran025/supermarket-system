@@ -17,6 +17,7 @@ class Purchase extends Model
         'user_id',
         'supplier_id',
         'voucher_number',
+        'notes',
         'vat_rate',
         'vat_amount',
         'approval_status',

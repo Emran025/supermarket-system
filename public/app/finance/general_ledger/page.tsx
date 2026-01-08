@@ -71,7 +71,7 @@ export default function GeneralLedgerPage() {
   const loadJournalEntries = useCallback(async (page: number = 1) => {
     try {
       setIsLoading(true);
-      let url = `/api/journal-entries?page=${page}&limit=${itemsPerPage}`;
+      let url = `/api/gl_entries?page=${page}&limit=${itemsPerPage}`;
       if (journalDateFrom) url += `&date_from=${journalDateFrom}`;
       if (journalDateTo) url += `&date_to=${journalDateTo}`;
       
@@ -89,7 +89,7 @@ export default function GeneralLedgerPage() {
   const loadTrialBalance = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetchAPI("/api/trial-balance");
+      const response = await fetchAPI("/api/trial_balance");
       setTrialBalance(response.items as TrialBalanceItem[] || []);
       setTrialTotals({
         debit: response.total_debit as number || 0,
@@ -117,7 +117,7 @@ export default function GeneralLedgerPage() {
     
     try {
       setIsLoading(true);
-      let url = `/api/accounts/${selectedAccountId}/history`;
+      let url = `/api/account_balance_history?account_id=${selectedAccountId}`;
       const params = [];
       if (historyDateFrom) params.push(`date_from=${historyDateFrom}`);
       if (historyDateTo) params.push(`date_to=${historyDateTo}`);

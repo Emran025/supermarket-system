@@ -15,13 +15,13 @@ return new class extends Migration
             $table->id();
             $table->string('name', 255);
             $table->text('description')->nullable();
-            $table->string('category', 100)->nullable();
+            $table->foreignId('category_id')->nullable()->constrained('categories')->onDelete('set null');
             $table->decimal('unit_price', 10, 2)->default(0.00);
             $table->decimal('minimum_profit_margin', 10, 2)->default(0.00);
             $table->integer('stock_quantity')->default(0);
             $table->string('unit_name', 50)->default('كرتون');
             $table->integer('items_per_unit')->default(1);
-            $table->string('sub_unit_name', 50)->default('حبة');
+            $table->string('sub_unit_name', 50)->nullable()->default('حبة');
             $table->decimal('weighted_average_cost', 10, 2)->default(0.00);
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();

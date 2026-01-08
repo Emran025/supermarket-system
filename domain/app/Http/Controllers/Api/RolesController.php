@@ -20,6 +20,14 @@ class RolesController extends Controller
 
         $action = $request->query('action');
 
+
+        if (!$action) {
+            $roles = Role::select('id', 'role_name_ar as name', 'role_key')
+                ->orderBy('role_name_ar')
+                ->get();
+            return response()->json(['success' => true, 'roles' => $roles]);
+        }
+        
         if ($action === 'roles') {
             $roles = Role::orderBy('role_name_ar')->get();
             return response()->json(['success' => true, 'data' => $roles]);

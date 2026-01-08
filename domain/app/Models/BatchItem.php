@@ -7,19 +7,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BatchItem extends Model
 {
+    protected $table = 'batch_items';
+
     protected $fillable = [
-        'batch_id',
-        'item_data',
-        'status',
-        'error_message',
+        'batch_id', 'item_index', 'status', 'reference_id',
+        'voucher_number', 'error_message'
     ];
 
     protected $casts = [
-        'item_data' => 'array',
+        'item_index' => 'integer',
+        'reference_id' => 'integer',
     ];
 
     public function batch(): BelongsTo
     {
-        return $this->belongsTo(Batch::class, 'batch_id');
+        return $this->belongsTo(BatchProcessing::class, 'batch_id');
     }
 }
