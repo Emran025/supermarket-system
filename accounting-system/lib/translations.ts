@@ -1,0 +1,230 @@
+// Arabic translations - exact copy from original translations.js
+export const translations = {
+  // General
+  loading: "جاري التحميل...",
+  save: "حفظ",
+  cancel: "إلغاء",
+  delete: "حذف",
+  edit: "تعديل",
+  add: "إضافة",
+  search: "بحث",
+  actions: "الإجراءات",
+  yes: "نعم",
+  no: "لا",
+  confirm: "تأكيد",
+  close: "إغلاق",
+  view: "عرض",
+  print: "طباعة",
+
+  // Auth
+  login: "تسجيل الدخول",
+  logout: "تسجيل الخروج",
+  username: "اسم المستخدم",
+  password: "كلمة المرور",
+  loginTitle: "تسجيل الدخول إلى النظام",
+  loginError: "اسم المستخدم أو كلمة المرور غير صحيحة",
+  sessionExpired: "انتهت صلاحية الجلسة، يرجى تسجيل الدخول مرة أخرى",
+
+  // Dashboard
+  dashboard: "لوحة التحكم",
+  dailySales: "مبيعات اليوم",
+  totalProducts: "إجمالي المنتجات",
+  lowStock: "مخزون منخفض",
+  expiringSoon: "قرب انتهاء الصلاحية",
+  recentSales: "المبيعات الأخيرة",
+  quickActions: "إجراءات سريعة",
+  newSale: "بيع جديد",
+  addProduct: "إضافة منتج",
+  viewReports: "عرض التقارير",
+
+  // Sales
+  sales: "المبيعات",
+  invoices: "الفواتير",
+  invoiceNumber: "رقم الفاتورة",
+  invoiceDate: "تاريخ الفاتورة",
+  totalAmount: "المبلغ الإجمالي",
+  paymentType: "نوع الدفع",
+  cash: "نقدي",
+  credit: "آجل",
+  customer: "العميل",
+  addToInvoice: "إضافة للفاتورة",
+  finishInvoice: "إنهاء الفاتورة",
+  currentInvoice: "الفاتورة الحالية",
+  invoiceHistory: "سجل الفواتير",
+  noItems: "لا توجد منتجات",
+  selectProduct: "اختر منتج",
+  quantity: "الكمية",
+  price: "السعر",
+  subtotal: "المجموع الفرعي",
+  total: "الإجمالي",
+  discount: "الخصم",
+  tax: "الضريبة",
+  grandTotal: "المجموع الكلي",
+
+  // Products
+  products: "المنتجات",
+  productName: "اسم المنتج",
+  category: "الفئة",
+  purchasePrice: "سعر الشراء",
+  sellingPrice: "سعر البيع",
+  stock: "المخزون",
+  unit: "الوحدة",
+  barcode: "الباركود",
+  description: "الوصف",
+  addNewProduct: "إضافة منتج جديد",
+  editProduct: "تعديل المنتج",
+  productDetails: "تفاصيل المنتج",
+  lowStockAlert: "تنبيه مخزون منخفض",
+  expiryDate: "تاريخ الانتهاء",
+
+  // Purchases
+  purchases: "المشتريات",
+  supplier: "المورد",
+  purchaseDate: "تاريخ الشراء",
+  addNewPurchase: "إضافة مشترى جديد",
+  editPurchase: "تعديل المشترى",
+  purchaseDetails: "تفاصيل المشترى",
+
+  // Expenses
+  expenses: "المصروفات",
+  expenseCategory: "فئة المصروف",
+  expenseAmount: "المبلغ",
+  expenseDate: "التاريخ",
+  expenseDescription: "الوصف",
+  addNewExpense: "إضافة مصروف جديد",
+  editExpense: "تعديل المصروف",
+  rent: "إيجار",
+  utilities: "مرافق",
+  salaries: "رواتب",
+  maintenance: "صيانة",
+  other: "أخرى",
+
+  // Users
+  users: "المستخدمين",
+  fullName: "الاسم الكامل",
+  role: "الدور",
+  admin: "مدير",
+  cashier: "كاشير",
+  manager: "مشرف",
+  active: "نشط",
+  inactive: "غير نشط",
+  addNewUser: "إضافة مستخدم جديد",
+  editUser: "تعديل المستخدم",
+
+  // Settings
+  settings: "الإعدادات",
+  storeInfo: "معلومات المتجر",
+  storeName: "اسم المتجر",
+  storeAddress: "العنوان",
+  storePhone: "الهاتف",
+  storeEmail: "البريد الإلكتروني",
+  taxNumber: "الرقم الضريبي",
+  invoiceSettings: "إعدادات الفاتورة",
+  accountSettings: "إعدادات الحساب",
+  changePassword: "تغيير كلمة المرور",
+  currentPassword: "كلمة المرور الحالية",
+  newPassword: "كلمة المرور الجديدة",
+  confirmPassword: "تأكيد كلمة المرور",
+
+  // Alerts & Messages
+  successSave: "تم الحفظ بنجاح",
+  successDelete: "تم الحذف بنجاح",
+  successAdd: "تمت الإضافة بنجاح",
+  successUpdate: "تم التحديث بنجاح",
+  errorOccurred: "حدث خطأ",
+  confirmDelete: "هل أنت متأكد من الحذف؟",
+  noData: "لا توجد بيانات",
+  requiredField: "هذا الحقل مطلوب",
+  invalidInput: "إدخال غير صالح",
+
+  // Pagination
+  previous: "السابق",
+  next: "التالي",
+  page: "صفحة",
+  of: "من",
+  showing: "عرض",
+  entries: "سجلات",
+
+  // Finance
+  revenues: "الإيرادات",
+  generalLedger: "دفتر الأستاذ العام",
+  journalEntries: "القيود اليومية",
+  trialBalance: "ميزان المراجعة",
+  accountHistory: "سجل الحساب",
+  chartOfAccounts: "دليل الحسابات",
+  journalVouchers: "سندات القيد",
+  debit: "مدين",
+  creditAmount: "دائن",
+  balance: "الرصيد",
+  account: "الحساب",
+  reference: "المرجع",
+  notes: "ملاحظات",
+
+  // Roles & Permissions
+  rolesPermissions: "الأدوار والصلاحيات",
+  createRole: "إنشاء دور جديد",
+  roleName: "اسم الدور",
+  permissions: "الصلاحيات",
+  module: "الوحدة",
+  canView: "عرض",
+  canCreate: "إنشاء",
+  canEdit: "تعديل",
+  canDelete: "حذف",
+
+  // Sessions
+  activeSessions: "الجلسات النشطة",
+  device: "الجهاز",
+  ipAddress: "عنوان IP",
+  lastActivity: "آخر نشاط",
+  terminateSession: "إنهاء الجلسة",
+
+  // Reports
+  reports: "التقارير",
+  salesReport: "تقرير المبيعات",
+  purchasesReport: "تقرير المشتريات",
+  inventoryReport: "تقرير المخزون",
+  profitReport: "تقرير الأرباح",
+  exportPDF: "تصدير PDF",
+  exportExcel: "تصدير Excel",
+
+  // Date & Time
+  today: "اليوم",
+  yesterday: "أمس",
+  thisWeek: "هذا الأسبوع",
+  thisMonth: "هذا الشهر",
+  thisYear: "هذا العام",
+  from: "من",
+  to: "إلى",
+  dateRange: "نطاق التاريخ",
+
+  // Units
+  piece: "قطعة",
+  box: "صندوق",
+  kg: "كيلو",
+  gram: "جرام",
+  liter: "لتر",
+  meter: "متر",
+
+  // Misc
+  totalSales: "إجمالي المبيعات",
+  totalExpenses: "إجمالي المصروفات",
+  totalRevenues: "إجمالي الإيرادات",
+  totalAssets: "إجمالي الأصول",
+  todayExpenses: "مصروفات اليوم",
+  todayRevenues: "إيرادات اليوم",
+  lowStockAlerts: "تنبيهات المخزون المنخفض",
+  expiringSoonAlerts: "تنبيهات قرب انتهاء الصلاحية",
+  newRequest: "طلب جديد",
+  purchaseRequests: "طلبات الشراء",
+  deferredSales: "المبيعات الآجلة",
+  arCustomers: "عملاء الآجل",
+  auditTrail: "سجل المراجعة",
+  batchProcessing: "المعالجة الدفعية",
+};
+
+export type TranslationKey = keyof typeof translations;
+
+export function t(key: TranslationKey): string {
+  return translations[key] || key;
+}
+

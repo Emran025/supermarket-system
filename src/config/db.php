@@ -50,6 +50,7 @@ function init_database()
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(50) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
+        full_name VARCHAR(100) DEFAULT NULL,
         role VARCHAR(20) DEFAULT 'admin',
         is_active TINYINT(1) DEFAULT 1,
         manager_id INT DEFAULT NULL,
@@ -107,6 +108,11 @@ function init_database()
     if ($check_manager && $check_manager instanceof mysqli_result && mysqli_num_rows($check_manager) == 0) {
         mysqli_query($conn, "ALTER TABLE users ADD COLUMN manager_id INT DEFAULT NULL");
         mysqli_query($conn, "ALTER TABLE users ADD CONSTRAINT fk_user_manager FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE SET NULL");
+    }
+
+    $check_fullname = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'full_name'");
+    if ($check_fullname && $check_fullname instanceof mysqli_result && mysqli_num_rows($check_fullname) == 0) {
+        mysqli_query($conn, "ALTER TABLE users ADD COLUMN full_name VARCHAR(100) DEFAULT NULL AFTER password");
     }
 
     // Check if new columns exist in sessions table

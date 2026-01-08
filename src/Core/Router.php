@@ -8,26 +8,46 @@ class Router {
     }
 
     public function dispatch() {
-        $action = $_GET['action'] ?? '';
+        $rawAction = $_GET['action'] ?? '';
+        
+        // Clean up common prefixes that might leak from frontend routing
+        $action = ltrim($rawAction, '/');
+        if (strpos($action, 'api/') === 0) {
+            $action = substr($action, 4);
+        }
         
         if (empty($action)) {
             $this->sendNotFound();
             return;
         }
 
-        if (array_key_exists($action, $this->routes)) {
-            $controllerClass = $this->routes[$action];
+        // Handle case like auth/check -> check
+        $parts = explode('/', $action);
+        $baseAction = $parts[0];
+        
+        // If first part is 'auth' and second part matches a registered route, use the second part
+        if ($baseAction === 'auth' && count($parts) > 1 && array_key_exists($parts[1], $this->routes)) {
+            $baseAction = $parts[1];
+            // Remove 'auth/' from the action for the controller
+            $action = substr($action, 5); 
+        }
+
+        if (array_key_exists($baseAction, $this->routes)) {
+            $controllerClass = $this->routes[$baseAction];
             $controller = new $controllerClass();
             
-            // Check if the controller has a handle method
+            // If there's an ID in the path (e.g. revenues/123), put it in $_GET['id']
+            if (count($parts) > 1 && !isset($_GET['id']) && $parts[1] !== $baseAction) {
+                $_GET['id'] = $parts[1];
+            }
+            
+            // Override action for controllers that switch on $_GET['action']
+            $_GET['action'] = $baseAction;
+
             if (method_exists($controller, 'handle')) {
                 $controller->handle();
             } else {
-                // If not, assume it's a specific method mapping or default handling
-                // For simplicity in this refactor, we'll expect controllers to have a handle() request
-                // or we could map specific actions to methods within a controller.
-                // Let's assume standard 'handle' for now which inspects request method.
-                $controller->handle();
+                $this->sendNotFound();
             }
         } else {
             $this->sendNotFound();
