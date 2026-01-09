@@ -73,7 +73,7 @@ function APLedgerPageContent() {
 
   useEffect(() => {
     if (!supplierId) {
-      router.push("/people/suppliers");
+      router.push("/suppliers");
       return;
     }
   }, [supplierId, router]);

@@ -41,7 +41,7 @@ This document provides a comprehensive implementation plan for adding a Human Re
 - Component-based tab content
 - Permission-based tab visibility
 
-**Users Page (`/app/people/users/page.tsx`):**
+**Users Page (`/app/users/page.tsx`):**
 
 - Table with pagination
 - Dialog-based add/edit forms

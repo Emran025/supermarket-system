@@ -238,7 +238,7 @@ export function getSidebarLinks(permissions: Permission[]): Array<{
     { href: "/purchases/purchases", icon: "cart", label: "المشتريات", module: "purchases" },
     { href: "/purchases/expenses", icon: "dollar", label: "المصروفات", module: "expenses" },
     { href: "/hr", icon: "users", label: "الموارد البشرية", module: "hr" },
-    { href: "/people/ar_customers", icon: "users", label: "عملاء الآجل", module: "ar_customers" },
+    { href: "/ar_customers", icon: "users", label: "عملاء الآجل", module: "ar_customers" },
     { href: "/finance/general_ledger", icon: "dollar", label: "دفتر الأستاذ", module: "general_ledger" },
     { href: "/finance/chart_of_accounts", icon: "building", label: "دليل الحسابات", module: "chart_of_accounts" },
     { href: "/finance/journal_vouchers", icon: "dollar", label: "سندات القيد", module: "journal_vouchers" },
@@ -250,7 +250,7 @@ export function getSidebarLinks(permissions: Permission[]): Array<{
     { href: "/system/audit_trail", icon: "eye", label: "سجل التدقيق", module: "audit_trail" },
     { href: "/system/recurring_transactions", icon: "check", label: "المعاملات المتكررة", module: "recurring_transactions" },
     { href: "/system/batch_processing", icon: "check", label: "المعالجة الدفعية", module: "batch_processing" },
-    { href: "/people/suppliers", icon: "users", label: "الموردين", module: "ap_suppliers" },
+    { href: "/suppliers", icon: "users", label: "الموردين", module: "ap_suppliers" },
     { href: "/finance/ap_ledger", icon: "dollar", label: "مدفوعات الموردين", module: "ap_suppliers" },
     { href: "/system/settings", icon: "settings", label: "الإعدادات", module: "settings" },
   ];

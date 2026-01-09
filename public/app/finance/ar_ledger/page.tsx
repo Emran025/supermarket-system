@@ -117,7 +117,7 @@ function ARLedgerPageContent() {
 
   useEffect(() => {
     if (!customerId) {
-      router.push("/people/ar_customers");
+      router.push("/ar_customers");
       return;
     }
   }, [customerId, router]);
