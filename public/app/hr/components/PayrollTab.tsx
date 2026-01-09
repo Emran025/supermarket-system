@@ -26,9 +26,9 @@ interface PayrollTransaction {
 
 interface Account {
     id: number;
-    account_code: string;
-    account_name: string;
-    account_type: string;
+    code: string;
+    name: string;
+    type: string;
 }
 
 export function PayrollTab() {
@@ -110,13 +110,21 @@ export function PayrollTab() {
 
   const loadAccounts = async () => {
       try {
-          const res = await fetchAPI('/api/accounts');
-          const data = res.data as Account[] || res as unknown as Account[];
-          const assetAccounts = data.filter(acc => acc.account_type === 'Asset' || acc.account_code.startsWith('1'));
+          const res: any = await fetchAPI('/api/accounts');
+          const data = res.accounts as Account[] || [];
+          
+          // Filter for Asset accounts (banks, cash, etc.)
+          // Note: account_type from controller is lowercase 'asset'
+          const assetAccounts = data.filter(acc => 
+            acc.type === 'asset' || 
+            acc.code.startsWith('1')
+          );
+          
           setAccounts(assetAccounts);
           
-          const cashAcc = assetAccounts.find(a => a.account_code === '1110');
+          const cashAcc = assetAccounts.find(a => a.code === '1110');
           if (cashAcc) setSelectedAccountId(cashAcc.id.toString());
+          else if (assetAccounts.length > 0) setSelectedAccountId(assetAccounts[0].id.toString());
       } catch (e) {
           console.error("Failed to load accounts", e);
       }
@@ -763,7 +771,7 @@ export function PayrollTab() {
          <div className="form-group">
             <label className="form-label">طريقة الصرف</label>
             <select className="form-control" value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}>
-                {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.account_code} - {acc.account_name}</option>)}
+                {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.code} - {acc.name}</option>)}
             </select>
          </div>
          <div className="form-group">
@@ -786,7 +794,7 @@ export function PayrollTab() {
          <div className="form-group">
             <label className="form-label">الصرف من حساب</label>
             <select className="form-control" value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}>
-                {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.account_code} - {acc.account_name}</option>)}
+                {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.code} - {acc.name}</option>)}
             </select>
          </div>
          <div style={{ padding: '15px', background: '#e8f5e9', borderRadius: '8px', marginTop: '10px' }}>

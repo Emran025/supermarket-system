@@ -32,11 +32,24 @@ class GeneralLedgerController extends Controller
         $asOfDate = $request->input('as_of_date');
 
         try {
-            $trialBalance = $this->ledgerService->getTrialBalanceData($asOfDate);
+            $data = $this->ledgerService->getTrialBalanceData($asOfDate);
             
+            $items = array_map(function($acc) {
+                return [
+                    'account_code' => $acc['account_code'],
+                    'account_name' => $acc['account_name'],
+                    'debit' => (float)$acc['debit_balance'],
+                    'credit' => (float)$acc['credit_balance'],
+                    'balance' => (float)($acc['debit_balance'] - $acc['credit_balance'])
+                ];
+            }, $data['accounts']);
+
             return response()->json([
                 'success' => true,
-                'data' => $trialBalance,
+                'items' => $items,
+                'total_debit' => (float)$data['total_debits'],
+                'total_credit' => (float)$data['total_credits'],
+                'balance' => (float)($data['total_debits'] - $data['total_credits'])
             ]);
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 500);
@@ -168,21 +181,28 @@ class GeneralLedgerController extends Controller
             ->map(function ($entry) {
                 return [
                     'id' => $entry->id,
-                    'voucher_number' => $entry->voucher_number,
-                    'voucher_date' => $entry->voucher_date,
-                    'account_code' => $entry->account->account_code,
-                    'account_name' => $entry->account->account_name,
+                    'entry_number' => $entry->voucher_number,
+                    'entry_date' => $entry->voucher_date->format('Y-m-d'),
+                    'account_code' => $entry->account?->account_code,
+                    'account_name' => $entry->account?->account_name,
+                    'debit_account' => $entry->entry_type === 'DEBIT' ? $entry->account?->account_name : '-',
+                    'credit_account' => $entry->entry_type === 'CREDIT' ? $entry->account?->account_name : '-',
                     'entry_type' => $entry->entry_type,
-                    'amount' => $entry->amount,
+                    'amount' => (float)$entry->amount,
                     'description' => $entry->description,
-                    'reference_type' => $entry->reference_type,
-                    'reference_id' => $entry->reference_id,
+                    'reference' => $entry->reference_type ? "{$entry->reference_type} #{$entry->reference_id}" : '-',
                     'created_by' => $entry->createdBy?->username,
-                    'created_at' => $entry->created_at,
+                    'created_at' => $entry->created_at->toDateTimeString(),
                 ];
             });
 
-        return $this->paginatedResponse($entries, $total, $page, $perPage);
+        return response()->json([
+            'success' => true,
+            'entries' => $entries,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage
+        ]);
     }
 
     /**
@@ -314,7 +334,7 @@ class GeneralLedgerController extends Controller
                 'type' => $account->account_type,
             ],
             'interval' => $interval,
-            'data' => $history,
+            'history' => $history,
         ]);
     }
 }

@@ -37,20 +37,18 @@ class JournalVouchersController extends Controller
         $perPage = min(100, max(1, (int)$request->input('per_page', 20)));
         $voucherNumber = $request->input('voucher_number');
 
-        // Step 1: Get the collection of unique voucher numbers for the current page
-        $voucherNumbersQuery = JournalVoucher::query();
+        $query = JournalVoucher::query();
         if ($voucherNumber) {
-            $voucherNumbersQuery->where('voucher_number', 'like', "%$voucherNumber%");
+            $query->where('voucher_number', 'like', "%$voucherNumber%");
         }
         
-        $uniqueVoucherCount = $voucherNumbersQuery->distinct('voucher_number')->count('voucher_number');
-        $pagedVoucherNumbers = $voucherNumbersQuery->distinct('voucher_number')
+        $uniqueVoucherCount = $query->distinct('voucher_number')->count('voucher_number');
+        $pagedVoucherNumbers = $query->distinct('voucher_number')
             ->orderBy('voucher_number', 'desc')
             ->skip(($page - 1) * $perPage)
             ->take($perPage)
             ->pluck('voucher_number');
 
-        // Step 2: Fetch all entries for these voucher numbers in ONE query
         $allEntries = JournalVoucher::whereIn('voucher_number', $pagedVoucherNumbers)
             ->with(['account', 'creator'])
             ->orderBy('voucher_number', 'desc')
@@ -58,27 +56,78 @@ class JournalVouchersController extends Controller
             ->get()
             ->groupBy('voucher_number');
 
-        // Step 3: Transform into the desired structure
         $vouchers = $pagedVoucherNumbers->map(function ($vNum) use ($allEntries) {
             $entries = $allEntries->get($vNum);
             $first = $entries->first();
             
             return [
+                'id' => $vNum, // Frontend uses .id for key and routing
                 'voucher_number' => $vNum,
-                'voucher_date' => $first->voucher_date,
+                'voucher_date' => $first->voucher_date->format('Y-m-d'),
                 'description' => $first->description,
+                'total_debit' => (float)$entries->where('entry_type', 'DEBIT')->sum('amount'),
+                'total_credit' => (float)$entries->where('entry_type', 'CREDIT')->sum('amount'),
+                'status' => 'posted', // In this system, they are posted immediately
                 'created_by_name' => $first->creator?->username,
                 'created_at' => $first->created_at->toDateTimeString(),
-                'entries' => $entries,
+                'lines' => $entries->map(function($e) {
+                    return [
+                        'id' => $e->id,
+                        'account_id' => $e->account_id,
+                        'account_name' => $e->account?->account_name,
+                        'debit' => $e->entry_type === 'DEBIT' ? (float)$e->amount : 0,
+                        'credit' => $e->entry_type === 'CREDIT' ? (float)$e->amount : 0,
+                        'description' => $e->description,
+                    ];
+                }),
             ];
         });
 
-        return $this->paginatedResponse(
-            \App\Http\Resources\JournalVoucherResource::collection($vouchers),
-            $uniqueVoucherCount,
-            $page,
-            $perPage
-        );
+        return response()->json([
+            'success' => true,
+            'vouchers' => $vouchers,
+            'total' => $uniqueVoucherCount
+        ]);
+    }
+
+    public function show($id): JsonResponse
+    {
+        PermissionService::requirePermission('journal_vouchers', 'view');
+
+        $entries = JournalVoucher::where('voucher_number', $id)
+            ->with(['account', 'creator'])
+            ->orderBy('id')
+            ->get();
+
+        if ($entries->isEmpty()) {
+            return $this->errorResponse('Voucher not found', 404);
+        }
+
+        $first = $entries->first();
+        $voucher = [
+            'id' => $id,
+            'voucher_number' => $id,
+            'voucher_date' => $first->voucher_date->format('Y-m-d'),
+            'description' => $first->description,
+            'total_debit' => (float)$entries->where('entry_type', 'DEBIT')->sum('amount'),
+            'total_credit' => (float)$entries->where('entry_type', 'CREDIT')->sum('amount'),
+            'status' => 'posted',
+            'lines' => $entries->map(function($e) {
+                return [
+                    'id' => $e->id,
+                    'account_id' => $e->account_id,
+                    'account_name' => $e->account?->account_name,
+                    'debit' => $e->entry_type === 'DEBIT' ? (float)$e->amount : 0,
+                    'credit' => $e->entry_type === 'CREDIT' ? (float)$e->amount : 0,
+                    'description' => $e->description,
+                ];
+            }),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'voucher' => $voucher
+        ]);
     }
 
     public function store(Request $request): JsonResponse
@@ -141,7 +190,7 @@ class JournalVouchersController extends Controller
                     'entry_type' => $entry['entry_type'],
                     'amount' => $entry['amount'],
                     'description' => $entry['description'],
-                    'created_by' => auth()->id() ?? session('user_id'),
+                    'created_by' => auth()->id() ?? session('user_id') ?? 1,
                 ]);
             }
 
@@ -169,14 +218,11 @@ class JournalVouchersController extends Controller
         });
     }
 
-    public function destroy(Request $request): JsonResponse
+    public function destroy($id): JsonResponse
     {
         PermissionService::requirePermission('journal_vouchers', 'delete');
 
-        $voucherNumber = $request->input('voucher_number');
-        if (!$voucherNumber) {
-            return $this->errorResponse('Voucher number is required', 400);
-        }
+        $voucherNumber = $id;
 
         // Check if already reversed
         $reversed = \App\Models\GeneralLedger::where('voucher_number', $voucherNumber)
@@ -196,5 +242,11 @@ class JournalVouchersController extends Controller
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 500);
         }
+    }
+
+    public function post($id): JsonResponse
+    {
+        // Journal vouchers are posted automatically in this implementation
+        return $this->successResponse(['message' => 'Voucher is already posted']);
     }
 }

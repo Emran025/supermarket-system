@@ -220,7 +220,7 @@ class ReportsController extends Controller
             ->where('ar_transactions.transaction_date', '<=', $asOfDate)
             ->groupBy('customers.id', 'customers.name')
             ->having('total', '>', 0)
-            ->setBindings([$asOfDate, $asOfDate, $asOfDate, $asOfDate, $asOfDate])
+            ->setBindings([$asOfDate, $asOfDate, $asOfDate, $asOfDate, $asOfDate, $asOfDate])
             ->get();
 
         $totals = [
@@ -266,7 +266,7 @@ class ReportsController extends Controller
             ->where('ap_transactions.transaction_date', '<=', $asOfDate)
             ->groupBy('suppliers.id', 'suppliers.name')
             ->having('total', '>', 0)
-            ->setBindings([$asOfDate, $asOfDate, $asOfDate, $asOfDate, $asOfDate])
+            ->setBindings([$asOfDate, $asOfDate, $asOfDate, $asOfDate, $asOfDate, $asOfDate])
             ->get();
 
         $totals = [
@@ -362,14 +362,14 @@ class ReportsController extends Controller
                 DB::raw('SUM(CASE WHEN entry_type = "DEBIT" THEN amount ELSE 0 END) as debits'),
                 DB::raw('SUM(CASE WHEN entry_type = "CREDIT" THEN amount ELSE 0 END) as credits')
             )
-            ->join('chart_of_accounts', 'chart_of_accounts.id', '=', 'general_ledgers.account_id')
+            ->join('chart_of_accounts', 'chart_of_accounts.id', '=', 'general_ledger.account_id')
             ->where('chart_of_accounts.account_type', $accountType)
             ->where('chart_of_accounts.is_active', true)
-            ->where('general_ledgers.is_closed', false)
-            ->where('general_ledgers.voucher_date', '<=', $asOfDate);
+            ->where('general_ledger.is_closed', false)
+            ->where('general_ledger.voucher_date', '<=', $asOfDate);
 
         if ($startDate) {
-            $balances->where('general_ledgers.voucher_date', '>=', $startDate);
+            $balances->where('general_ledger.voucher_date', '>=', $startDate);
         }
 
         $results = $balances->groupBy('chart_of_accounts.account_code', 'chart_of_accounts.account_name')

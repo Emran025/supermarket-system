@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\RecurringTransactionsController;
 use App\Http\Controllers\Api\SessionsController;
 use App\Http\Controllers\Api\EmployeesController;
 use App\Http\Controllers\Api\PayrollController;
+use App\Http\Controllers\Api\JournalVouchersController;
 
 use App\Http\Controllers\Api\DepartmentsController;
 
@@ -94,6 +95,13 @@ Route::middleware(['api.auth'])->group(function () {
     Route::get('/gl_entries', [GeneralLedgerController::class, 'entries'])->name('api.gl_entries');
     Route::get('/account_activity', [GeneralLedgerController::class, 'accountActivity'])->name('api.account_activity');
     Route::get('/account_balance_history', [GeneralLedgerController::class, 'accountBalanceHistory'])->name('api.account_balance_history');
+
+    // Journal Vouchers
+    Route::get('/vouchers', [JournalVouchersController::class, 'index'])->name('api.vouchers.index');
+    Route::post('/vouchers', [JournalVouchersController::class, 'store'])->name('api.vouchers.store');
+    Route::get('/vouchers/{id}', [JournalVouchersController::class, 'show'])->name('api.vouchers.show');
+    Route::delete('/vouchers/{id}', [JournalVouchersController::class, 'destroy'])->name('api.vouchers.destroy');
+    Route::post('/vouchers/{id}/post', [JournalVouchersController::class, 'post'])->name('api.vouchers.post');
 
     // Fiscal Periods
     Route::get('/fiscal_periods', [FiscalPeriodsController::class, 'index'])->name('api.fiscal_periods.index');
