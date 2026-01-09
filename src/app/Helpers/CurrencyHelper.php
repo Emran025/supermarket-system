@@ -20,12 +20,10 @@ class CurrencyHelper
         return round($amount, 2);
     }
 
-    /**
-     * Calculate tax (VAT 15% in KSA)
-     */
-    public static function calculateVAT($amount, $rate = 0.15): float
+    public static function calculateVAT($amount, $rate = null): float
     {
-        return self::round($amount * $rate);
+        $taxRate = $rate ?? (float)config('accounting.vat_rate');
+        return self::round($amount * $taxRate);
     }
 }
 

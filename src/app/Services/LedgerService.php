@@ -117,6 +117,14 @@ class LedgerService
                     throw new \Exception("Account not found: {$entry['account_code']}");
                 }
 
+                // Check if account is a summary account (has children)
+                if (config('accounting.prevent_posting_to_parent_accounts', true)) {
+                    $hasChildren = ChartOfAccount::where('parent_id', $account->id)->exists();
+                    if ($hasChildren) {
+                        throw new \Exception("Cannot post to a summary account (header): {$account->account_name} ({$account->account_code})");
+                    }
+                }
+
                 GeneralLedger::create([
                     'voucher_number' => $voucherNumber,
                     'voucher_date' => $voucherDate,

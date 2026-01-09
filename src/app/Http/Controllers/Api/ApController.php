@@ -212,12 +212,71 @@ class ApController extends Controller
                 'created_by' => auth()->id() ?? session('user_id'),
             ]);
 
+            // GL Posting
+            $mappings = $this->coaService->getStandardAccounts();
+            $glEntries = [];
+            $supplier = ApSupplier::find($validated['supplier_id']);
+
+            if ($validated['type'] === 'invoice') {
+                // Supplier Invoice: Debit Expense/Inventory, Credit AP
+                $glEntries[] = [
+                    'account_code' => $mappings['operating_expenses'], // Simplified default
+                    'entry_type' => 'DEBIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Invoice from supplier: {$supplier->name} - " . ($validated['description'] ?? '')
+                ];
+                $glEntries[] = [
+                    'account_code' => $mappings['accounts_payable'],
+                    'entry_type' => 'CREDIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Invoice from supplier: {$supplier->name} (AP Update)"
+                ];
+            } elseif ($validated['type'] === 'payment') {
+                // Payment to Supplier: Debit AP, Credit Cash
+                $glEntries[] = [
+                    'account_code' => $mappings['accounts_payable'],
+                    'entry_type' => 'DEBIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Payment to supplier: {$supplier->name} - " . ($validated['description'] ?? '')
+                ];
+                $glEntries[] = [
+                    'account_code' => $mappings['cash'],
+                    'entry_type' => 'CREDIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Payment to supplier: {$supplier->name} (AP Update)"
+                ];
+            } else {
+                // Return: Debit AP, Credit Expense
+                $glEntries[] = [
+                    'account_code' => $mappings['accounts_payable'],
+                    'entry_type' => 'DEBIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Return to supplier: {$supplier->name} (AP Update)"
+                ];
+                $glEntries[] = [
+                    'account_code' => $mappings['operating_expenses'],
+                    'entry_type' => 'CREDIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Return to supplier: {$supplier->name} - " . ($validated['description'] ?? '')
+                ];
+            }
+
+            $voucherNumber = $this->ledgerService->postTransaction(
+                $glEntries,
+                'ap_transactions',
+                $transaction->id,
+                null,
+                $validated['date'] ?? now()->format('Y-m-d')
+            );
+
+            $transaction->update(['description' => ($validated['description'] ?? '') . " [Voucher: $voucherNumber]"]);
+
             // Update supplier balance
             $this->updateSupplierBalance($validated['supplier_id']);
 
             TelescopeService::logOperation('CREATE', 'ap_transactions', $transaction->id, null, $validated);
 
-            return $this->successResponse(['id' => $transaction->id]);
+            return $this->successResponse(['id' => $transaction->id, 'voucher_number' => $voucherNumber]);
         });
     }
 

@@ -16,11 +16,16 @@ class PayrollService
 {
     protected $accountService;
     protected $mappingService;
+    protected $ledgerService;
 
-    public function __construct(EmployeeAccountService $accountService, ChartOfAccountsMappingService $mappingService)
-    {
+    public function __construct(
+        EmployeeAccountService $accountService, 
+        ChartOfAccountsMappingService $mappingService,
+        LedgerService $ledgerService
+    ) {
         $this->accountService = $accountService;
         $this->mappingService = $mappingService;
+        $this->ledgerService = $ledgerService;
     }
 
     /**
@@ -201,58 +206,41 @@ class PayrollService
     protected function createAccrualEntries($cycle, $user)
     {
         $mappings = $this->mappingService->getStandardAccounts();
-        
-        $salaryExpenseAccount = ChartOfAccount::where('account_code', $mappings['salaries_expense'])->first();
-        $salaryPayableAccount = ChartOfAccount::where('account_code', $mappings['salaries_payable'])->first();
-
-        if (!$salaryExpenseAccount || !$salaryPayableAccount) {
-            throw new \Exception("Critical Payroll Accounts (Expense/Payable) missing in Chart of Accounts mapping.");
-        }
-
-        $entryDate = $cycle->period_end ?? now();
+        $entryDate = $cycle->period_end ?? now()->format('Y-m-d');
+        $glEntries = [];
 
         // Debit Expense
-        GeneralLedger::create([
-            'voucher_number' => 'PAY-ACCR-' . $cycle->id,
-            'voucher_date' => $entryDate,
-            'account_id' => $salaryExpenseAccount->id,
-            'entry_type' => 'debit',
+        $glEntries[] = [
+            'account_code' => $mappings['salaries_expense'],
+            'entry_type' => 'DEBIT',
             'amount' => $cycle->total_gross,
-            'description' => "Payroll Accrual (" . ucfirst($cycle->cycle_type) . "): " . $cycle->cycle_name . " [Status: Final Approval]",
-            'reference_type' => 'payroll_cycle',
-            'reference_id' => $cycle->id,
-            'created_by' => $user->id
-        ]);
+            'description' => "Payroll Accrual (" . ucfirst($cycle->cycle_type) . "): " . $cycle->cycle_name
+        ];
 
         // Credit Payable
-        GeneralLedger::create([
-            'voucher_number' => 'PAY-ACCR-' . $cycle->id,
-            'voucher_date' => $entryDate,
-            'account_id' => $salaryPayableAccount->id,
-            'entry_type' => 'credit',
+        $glEntries[] = [
+            'account_code' => $mappings['salaries_payable'],
+            'entry_type' => 'CREDIT',
             'amount' => $cycle->total_net,
-            'description' => "Payroll Payable (" . ucfirst($cycle->cycle_type) . "): " . $cycle->cycle_name . " [Status: Final Approval]",
-            'reference_type' => 'payroll_cycle',
-            'reference_id' => $cycle->id,
-            'created_by' => $user->id
-        ]);
+            'description' => "Payroll Payable (" . ucfirst($cycle->cycle_type) . "): " . $cycle->cycle_name
+        ];
 
         if ($cycle->total_deductions > 0) {
-            $apAccount = ChartOfAccount::where('account_code', $mappings['accounts_payable'])->first();
-            if ($apAccount) {
-                GeneralLedger::create([
-                    'voucher_number' => 'PAY-ACCR-' . $cycle->id,
-                    'voucher_date' => $entryDate,
-                    'account_id' => $apAccount->id,
-                    'entry_type' => 'credit',
-                    'amount' => $cycle->total_deductions,
-                    'description' => "Payroll Deductions Liability: " . $cycle->cycle_name,
-                    'reference_type' => 'payroll_cycle',
-                    'reference_id' => $cycle->id,
-                    'created_by' => $user->id
-                ]);
-            }
+            $glEntries[] = [
+                'account_code' => $mappings['accounts_payable'],
+                'entry_type' => 'CREDIT',
+                'amount' => $cycle->total_deductions,
+                'description' => "Payroll Deductions Liability: " . $cycle->cycle_name
+            ];
         }
+
+        $this->ledgerService->postTransaction(
+            $glEntries,
+            'payroll_cycle',
+            $cycle->id,
+            'PAY-ACCR-' . $cycle->id,
+            $entryDate
+        );
     }
 
     public function processPayment($id, $paymentAccountId = null)
@@ -273,29 +261,28 @@ class PayrollService
             $cashAccount = $paymentAccountId ? ChartOfAccount::find($paymentAccountId) : ChartOfAccount::where('account_code', $mappings['cash'])->first();
 
             if ($salaryPayableAccount && $cashAccount) {
-                 GeneralLedger::create([
-                    'voucher_number' => 'PAY-PMT-' . $cycle->id,
-                    'voucher_date' => $cycle->payment_date ?? now(),
-                    'account_id' => $salaryPayableAccount->id,
-                    'entry_type' => 'debit',
-                    'amount' => $cycle->total_net,
-                    'description' => "Payroll Payment (" . ucfirst($cycle->cycle_type) . "): " . $cycle->cycle_name,
-                    'reference_type' => 'payroll_cycle',
-                    'reference_id' => $cycle->id,
-                    'created_by' => auth()->id() ?? 1
-                ]);
+                $glEntries = [
+                    [
+                        'account_code' => $mappings['salaries_payable'],
+                        'entry_type' => 'DEBIT',
+                        'amount' => $cycle->total_net,
+                        'description' => "Payroll Payment (" . ucfirst($cycle->cycle_type) . "): " . $cycle->cycle_name
+                    ],
+                    [
+                        'account_code' => $cashAccount->account_code,
+                        'entry_type' => 'CREDIT',
+                        'amount' => $cycle->total_net,
+                        'description' => "Payroll Payment (" . ucfirst($cycle->cycle_type) . "): " . $cycle->cycle_name
+                    ]
+                ];
 
-                GeneralLedger::create([
-                    'voucher_number' => 'PAY-PMT-' . $cycle->id,
-                    'voucher_date' => $cycle->payment_date ?? now(),
-                    'account_id' => $cashAccount->id,
-                    'entry_type' => 'credit',
-                    'amount' => $cycle->total_net,
-                    'description' => "Payroll Payment (" . ucfirst($cycle->cycle_type) . "): " . $cycle->cycle_name,
-                    'reference_type' => 'payroll_cycle',
-                    'reference_id' => $cycle->id,
-                    'created_by' => auth()->id() ?? 1
-                ]);
+                $this->ledgerService->postTransaction(
+                    $glEntries,
+                    'payroll_cycle',
+                    $cycle->id,
+                    'PAY-PMT-' . $cycle->id,
+                    $cycle->payment_date ?? now()->format('Y-m-d')
+                );
             }
 
             foreach($cycle->items as $item) {
@@ -343,29 +330,28 @@ class PayrollService
 
         $voucherNumber = 'PAY-IND-' . $payrollItem->id . '-' . $transactionId;
 
-        GeneralLedger::create([
-            'voucher_number' => $voucherNumber,
-            'voucher_date' => now(),
-            'account_id' => $salaryPayableAccount->id,
-            'entry_type' => 'debit',
-            'amount' => $amount,
-            'description' => "Individual Salary Payment - " . ($payrollItem->employee->full_name ?? 'Employee'),
-            'reference_type' => 'payroll_transaction',
-            'reference_id' => $transactionId,
-            'created_by' => auth()->id() ?? 1
-        ]);
+        $glEntries = [
+            [
+                'account_code' => $mappings['salaries_payable'],
+                'entry_type' => 'DEBIT',
+                'amount' => $amount,
+                'description' => "Individual Salary Payment - " . ($payrollItem->employee->full_name ?? 'Employee')
+            ],
+            [
+                'account_code' => $cashAccount->account_code,
+                'entry_type' => 'CREDIT',
+                'amount' => $amount,
+                'description' => "Individual Salary Payment - " . ($payrollItem->employee->full_name ?? 'Employee')
+            ]
+        ];
 
-        GeneralLedger::create([
-            'voucher_number' => $voucherNumber,
-            'voucher_date' => now(),
-            'account_id' => $cashAccount->id,
-            'entry_type' => 'credit',
-            'amount' => $amount,
-            'description' => "Individual Salary Payment - " . ($payrollItem->employee->full_name ?? 'Employee'),
-            'reference_type' => 'payroll_transaction',
-            'reference_id' => $transactionId,
-            'created_by' => auth()->id() ?? 1
-        ]);
+        $this->ledgerService->postTransaction(
+            $glEntries,
+            'payroll_transaction',
+            $transactionId,
+            $voucherNumber,
+            now()->format('Y-m-d')
+        );
     }
 
     public function toggleItemStatus($itemId)

@@ -13,9 +13,21 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Api\BaseApiController;
 
+use App\Services\LedgerService;
+use App\Services\ChartOfAccountsMappingService;
+
 class ArController extends Controller
 {
     use BaseApiController;
+
+    private LedgerService $ledgerService;
+    private ChartOfAccountsMappingService $coaService;
+
+    public function __construct(LedgerService $ledgerService, ChartOfAccountsMappingService $coaService)
+    {
+        $this->ledgerService = $ledgerService;
+        $this->coaService = $coaService;
+    }
 
     public function customers(Request $request): JsonResponse
     {
@@ -191,9 +203,54 @@ class ArController extends Controller
             ArCustomer::where('id', $validated['customer_id'])
                 ->increment('current_balance', $balanceChange);
 
+            // GL Posting
+            $mappings = $this->coaService->getStandardAccounts();
+            $glEntries = [];
+            $customer = ArCustomer::find($validated['customer_id']);
+
+            if ($validated['type'] === 'payment') {
+                // Payment Received: Debit Cash, Credit AR
+                $glEntries[] = [
+                    'account_code' => $mappings['cash'],
+                    'entry_type' => 'DEBIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Payment from customer: {$customer->name} - " . ($validated['description'] ?? '')
+                ];
+                $glEntries[] = [
+                    'account_code' => $mappings['accounts_receivable'],
+                    'entry_type' => 'CREDIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Payment from customer: {$customer->name} (AR Update)"
+                ];
+            } else {
+                // Return: Debit Sales Revenue (or Sales Return), Credit AR
+                $glEntries[] = [
+                    'account_code' => $mappings['sales_revenue'], // Simplified, usually a specific Sales Return account
+                    'entry_type' => 'DEBIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Return from customer: {$customer->name} - " . ($validated['description'] ?? '')
+                ];
+                $glEntries[] = [
+                    'account_code' => $mappings['accounts_receivable'],
+                    'entry_type' => 'CREDIT',
+                    'amount' => $validated['amount'],
+                    'description' => "Return from customer: {$customer->name} (AR Update)"
+                ];
+            }
+
+            $voucherNumber = $this->ledgerService->postTransaction(
+                $glEntries,
+                'ar_transactions',
+                $transaction->id,
+                null,
+                $validated['date'] ?? now()->format('Y-m-d')
+            );
+
+            $transaction->update(['description' => ($validated['description'] ?? '') . " [Voucher: $voucherNumber]"]);
+
             TelescopeService::logOperation('CREATE', 'ar_transactions', $transaction->id, null, $validated);
 
-            return $this->successResponse(['id' => $transaction->id]);
+            return $this->successResponse(['id' => $transaction->id, 'voucher_number' => $voucherNumber]);
         });
     }
 
@@ -212,6 +269,15 @@ class ArController extends Controller
             
             ArCustomer::where('id', $transaction->customer_id)
                 ->increment('current_balance', $balanceChange);
+
+            // Reverse GL entries
+            $voucherNumber = \App\Models\GeneralLedger::where('reference_type', 'ar_transactions')
+                ->where('reference_id', $transaction->id)
+                ->value('voucher_number');
+            
+            if ($voucherNumber) {
+                $this->ledgerService->reverseTransaction($voucherNumber, "Reversal of AR Transaction #{$transaction->id}");
+            }
 
             // Soft delete
             $transaction->update([

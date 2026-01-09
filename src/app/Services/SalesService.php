@@ -80,7 +80,7 @@ class SalesService
                 $product->decrement('stock_quantity', $quantity);
             }
 
-            $vatRate = isset($data['vat_rate']) ? (float)$data['vat_rate'] / 100 : 0.15; // Default 15% if not provided
+            $vatRate = isset($data['vat_rate']) ? (float)$data['vat_rate'] / 100 : (float)config('accounting.vat_rate'); 
             $taxableAmount = $subtotal - $discountAmount;
             $vatAmount = round($taxableAmount * $vatRate, 2);
             $totalAmount = $taxableAmount + $vatAmount;
@@ -245,4 +245,3 @@ class SalesService
         });
     }
 }
-
