@@ -342,8 +342,24 @@ export default function SalesPage() {
             if (response.success) {
                 showAlert("alert-container", "تمت العملية بنجاح. جاري الطباعة...", "success");
 
-                // Auto-print
+                // Submit to ZATCA if enabled (Backend handles feature flag check)
                 if (response.id) {
+                    try {
+                        // We await this so the QR code is generated before printing
+                        const zatcaRes = await fetchAPI(`invoices/${response.id}/zatca/submit`, { method: "POST" });
+                        if (zatcaRes.success) {
+                            console.log("ZATCA Submitted", zatcaRes);
+                        } else if (zatcaRes.status === 'skipped') {
+                             // ZATCA disabled or not applicable
+                        } else {
+                            console.warn("ZATCA Submission Failed", zatcaRes);
+                            showToast("تحذير: لم يتم إرسال الفاتورة لهيئة الزكاة", "warning");
+                        }
+                    } catch (zError) {
+                        console.error("ZATCA Error:", zError);
+                    }
+
+                    // Auto-print
                     try {
                         await printInvoice(response.id as number);
                     } catch (printError) {

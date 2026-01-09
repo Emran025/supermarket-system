@@ -106,7 +106,7 @@ class SalesController extends Controller
         }
         PermissionService::requirePermission('sales', 'view');
 
-        $invoice = Invoice::with(['items.product', 'user', 'customer'])
+        $invoice = Invoice::with(['items.product', 'user', 'customer', 'zatcaEinvoice'])
             ->findOrFail($id);
 
         return response()->json([

@@ -50,6 +50,10 @@ Route::middleware(['api.auth'])->group(function () {
     Route::get('/invoice_details', [SalesController::class, 'show'])->name('api.invoice_details');
     Route::delete('/invoices', [SalesController::class, 'destroy'])->name('api.invoices.destroy');
 
+    // ZATCA
+    Route::post('/invoices/{id}/zatca/submit', [\App\Http\Controllers\Api\ZATCAInvoiceController::class, 'submit'])->name('api.invoices.zatca.submit');
+    Route::get('/invoices/{id}/zatca/status', [\App\Http\Controllers\Api\ZATCAInvoiceController::class, 'getStatus'])->name('api.invoices.zatca.status');
+
     // Purchases
     Route::get('/purchases', [PurchasesController::class, 'index'])->name('api.purchases.index');
     Route::post('/purchases', [PurchasesController::class, 'store'])->name('api.purchases.store');

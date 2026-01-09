@@ -1,4 +1,5 @@
 // API Utilities - Mirrors the original common.js fetchAPI
+import QRCode from "qrcode";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000/api';
 
@@ -260,6 +261,28 @@ export function generateBarcode(text: string, padding = 20): string {
     return canvas.toDataURL();
   } catch (e) {
     console.error('Barcode generation error', e);
+    return '';
+  }
+}
+
+/**
+ * Generate QR Code image (Data URL)
+ */
+export async function generateQRCode(text: string): Promise<string> {
+  if (typeof document === 'undefined') return '';
+  
+  try {
+    return await QRCode.toDataURL(text, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 250,
+      color: {
+        dark: '#000000',
+        light: '#ffffff',
+      },
+    });
+  } catch (err) {
+    console.error('QR Code generation error', err);
     return '';
   }
 }

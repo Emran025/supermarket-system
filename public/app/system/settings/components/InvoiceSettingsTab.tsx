@@ -11,6 +11,7 @@ export function InvoiceSettingsTab() {
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>({
     show_logo: true,
     show_qr: true,
+    zatca_enabled: false,
     footer_text: "",
     terms_text: "",
   });
@@ -103,7 +104,7 @@ export function InvoiceSettingsTab() {
       };
 
       // Generate preview HTML
-      const content = generateInvoiceHTML(invoice, settings);
+      const content = await generateInvoiceHTML(invoice, settings);
 
       // Render in iframe
       if (previewIframeRef.current) {
@@ -150,6 +151,20 @@ export function InvoiceSettingsTab() {
               />
               <label htmlFor="show_qr">عرض رمز QR</label>
             </div>
+          </div>
+          <div className="form-group">
+             <div className="checkbox-group" style={{ borderLeft: "4px solid #10b981", transform: "none" }}>
+               <input
+                 type="checkbox"
+                 id="zatca_enabled"
+                 checked={invoiceSettings.zatca_enabled}
+                 onChange={(e) => setInvoiceSettings({ ...invoiceSettings, zatca_enabled: e.target.checked })}
+               />
+               <label htmlFor="zatca_enabled">تفعيل الفوترة الإلكترونية (ZATCA)</label>
+             </div>
+             <small style={{ display: 'block', marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
+                 عند التفعيل، سيتم إرسال الفواتير تلقائياً إلى منصة فاتورة.
+             </small>
           </div>
           <div className="form-group full-width">
             <label htmlFor="footer_text">نص التذييل</label>

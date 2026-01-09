@@ -11,6 +11,7 @@ export interface StoreSettings {
   export interface InvoiceSettings {
     show_logo: boolean;
     show_qr: boolean;
+    zatca_enabled: boolean;
     footer_text: string;
     terms_text: string;
   }

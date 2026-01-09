@@ -1,7 +1,7 @@
 // Invoice Printing Utilities - Migrated from common.js
 
 import { fetchAPI } from "./api";
-import { generateBarcode, generateTLV } from "./api";
+import { generateBarcode, generateTLV, generateQRCode } from "./api";
 import { formatDate } from "./utils";
 
 export interface InvoiceData {
@@ -23,6 +23,11 @@ export interface InvoiceData {
   tax_amount?: number;
   discount_amount?: number;
   discount?: number;
+  zatca_einvoice?: {
+    zatca_qr_code?: string;
+    qr_code?: string;
+    zatca_uuid?: string;
+  };
 }
 
 export interface InvoiceSettings {
@@ -84,11 +89,11 @@ export async function checkPrinterConnection(): Promise<boolean> {
 /**
  * Generates the HTML content for an invoice based on provided settings and data.
  */
-export function generateInvoiceHTML(
+export async function generateInvoiceHTML(
   inv: InvoiceData,
   settings: InvoiceSettings,
   qrDataUrl?: string
-): string {
+): Promise<string> {
   const isThermal = (settings.invoice_size || "thermal") === "thermal";
   const currencySymbol = settings.currency_symbol || "ر.س";
 
@@ -156,8 +161,18 @@ export function generateInvoiceHTML(
     5: (taxAmount || 0).toFixed(2),
   });
 
-  // Generate QR locally if not provided
-  const qrUrl = qrDataUrl || generateBarcode(tlvData, isThermal ? 12 : 28);
+  // Generate QR: Use ZATCA if available, else local
+  let qrUrl = qrDataUrl;
+  
+  if (!qrUrl && inv.zatca_einvoice?.zatca_qr_code) {
+      // If valid ZATCA QR (Base64 TLV) exists, generate image from it
+      qrUrl = await generateQRCode(inv.zatca_einvoice.zatca_qr_code);
+  }
+
+  if (!qrUrl) {
+      // Fallback
+      qrUrl = await generateQRCode(tlvData);
+  }
 
   const style = `
         <style>
@@ -282,7 +297,7 @@ export function generateInvoiceHTML(
               margin:16px auto;
               display:block;
               max-width: 100%;
-              height:50px;
+              height:auto;
             }
 
             .watermark{
@@ -370,7 +385,7 @@ export function generateInvoiceHTML(
                 </div>
 
                 <div class="footer">
-                    ${settings.show_qr !== false ? `<img src="${qrUrl}" class="barcode" alt="Barcode">` : ""}
+                    ${settings.show_qr !== false ? `<img src="${qrUrl}" class="barcode" alt="QR Code">` : ""}
 
                     <p><strong>${
                       settings.footer_message || "شكراً لزيارتكم!"
@@ -408,7 +423,7 @@ export async function printInvoice(invoiceId: number): Promise<void> {
   const inv = response.invoice as InvoiceData;
 
   // Generate invoice HTML
-  const content = generateInvoiceHTML(inv, settings);
+  const content = await generateInvoiceHTML(inv, settings);
 
   // Create iframe for printing
   const printFrame = document.createElement("iframe");
@@ -461,4 +476,3 @@ export async function printInvoice(invoiceId: number): Promise<void> {
     throw new Error("خطأ أثناء تحضير الفاتورة للطباعة");
   }
 }
-

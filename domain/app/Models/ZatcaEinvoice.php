@@ -17,6 +17,7 @@ class ZatcaEinvoice extends Model
     protected $casts = [
         'signed_at' => 'datetime',
         'submitted_at' => 'datetime',
+        'status' => 'string'
     ];
 
     public function invoice(): BelongsTo

@@ -55,15 +55,13 @@ class SettingsController extends Controller
     {
         PermissionService::requirePermission('settings', 'view');
         
-        $keys = ['show_logo', 'show_qr', 'footer_text', 'terms_text', 'invoice_size'];
+        $keys = ['show_logo', 'show_qr', 'zatca_enabled', 'footer_text', 'terms_text', 'invoice_size'];
         $settings = Setting::whereIn('setting_key', $keys)->pluck('setting_value', 'setting_key')->toArray();
         
         // Cast boolean values
-        if (isset($settings['show_logo'])) $settings['show_logo'] = (bool)$settings['show_logo'];
-        else $settings['show_logo'] = true;
-
-        if (isset($settings['show_qr'])) $settings['show_qr'] = (bool)$settings['show_qr'];
-        else $settings['show_qr'] = true;
+        $settings['show_logo'] = isset($settings['show_logo']) ? filter_var($settings['show_logo'], FILTER_VALIDATE_BOOLEAN) : true;
+        $settings['show_qr'] = isset($settings['show_qr']) ? filter_var($settings['show_qr'], FILTER_VALIDATE_BOOLEAN) : true;
+        $settings['zatca_enabled'] = isset($settings['zatca_enabled']) ? filter_var($settings['zatca_enabled'], FILTER_VALIDATE_BOOLEAN) : false;
 
         foreach ($keys as $key) {
             if (!isset($settings[$key])) $settings[$key] = '';
