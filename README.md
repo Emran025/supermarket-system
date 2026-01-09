@@ -55,7 +55,7 @@ cd public && npm run dev
 
 For **complete technical documentation**, see:
 
-### **[TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md)**
+### **[TECHNICAL_DOCUMENTATION.md](./docs/TECHNICAL_DOCUMENTATION.md)**
 
 This comprehensive guide includes:
 
@@ -93,18 +93,18 @@ This comprehensive guide includes:
 
 ```txt
 ┌─────────────────────────────────────┐
-│   NEXT.JS FRONTEND (Port 3000)     │
-│   React 19 + TypeScript + Tailwind │
-└────────────┬────────────────────────┘
-             │ REST API (JSON)
-┌────────────▼────────────────────────┐
-│   LARAVEL BACKEND (Port 8000)      │
-│   PHP 8.2 + MVC + Service Layer    │
-└────────────┬────────────────────────┘
-             │
-┌────────────▼────────────────────────┐
-│   DATABASE (SQLite/MySQL)          │
-│   49 Tables, Full ACID Compliance  │
+│   NEXT.JS FRONTEND (Port 3000)      │
+│   React 19 + TypeScript + Tailwind  │
+└─────────────────┬───────────────────┘
+                  │ REST API (JSON)
+┌─────────────────▼───────────────────┐
+│    LARAVEL BACKEND (Port 8000)      │
+│    PHP 8.2 + MVC + Service Layer    │
+└─────────────────┬───────────────────┘
+                  │
+┌─────────────────▼───────────────────┐
+│    DATABASE (SQLite/MySQL)          │
+│    49 Tables, Full ACID Compliance  │
 └─────────────────────────────────────┘
 ```
 
@@ -282,7 +282,7 @@ npm start
 # Or deploy to Vercel/Netlify
 ```
 
-See [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md#11-deployment-guide) for detailed deployment instructions.
+See [TECHNICAL_DOCUMENTATION.md](./docs/TECHNICAL_DOCUMENTATION.md#11-deployment-guide) for detailed deployment instructions.
 
 ---
 
@@ -319,7 +319,7 @@ See [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md#11-deployment-guid
 }
 ```
 
-See [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md#6-api-surface--contracts) for complete API reference.
+See [TECHNICAL_DOCUMENTATION.md](./docs/TECHNICAL_DOCUMENTATION.md#6-api-surface--contracts) for complete API reference.
 
 ---
 
@@ -357,7 +357,7 @@ See [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md#6-api-surface--con
 | 401 Unauthorized | Clear localStorage, re-login |
 | Changes not reflecting | Clear cache: `php artisan config:clear` |
 
-See [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md#10-troubleshooting--common-issues) for detailed troubleshooting.
+See [TECHNICAL_DOCUMENTATION.md](./docs/TECHNICAL_DOCUMENTATION.md#10-troubleshooting--common-issues) for detailed troubleshooting.
 
 ---
 
@@ -379,7 +379,7 @@ MIT License - See LICENSE file for details
 
 ## Support
 
-- **Documentation:** [TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md)
+- **Documentation:** [TECHNICAL_DOCUMENTATION.md](./docs/TECHNICAL_DOCUMENTATION.md)
 - **Issues:** Submit via GitHub Issues with detailed logs
 - **Logs:** Check `src/storage/logs/laravel.log`
 

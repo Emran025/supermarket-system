@@ -10,7 +10,7 @@ Welcome to the comprehensive documentation for the Enterprise Accounting System.
 
 ### Core Documentation
 
-1. **[README.md](./README.md)**
+1. **[README.md](./../README.md)**
    - Quick start guide
    - Project overview
    - Installation instructions
@@ -46,7 +46,7 @@ Welcome to the comprehensive documentation for the Enterprise Accounting System.
 
 Start here to get up and running:
 
-1. Read [README.md](./README.md) - 5 minutes
+1. Read [README.md](./../README.md) - 5 minutes
 2. Follow installation steps
 3. Review [TECHNICAL_DOCUMENTATION.md - Section 9](./TECHNICAL_DOCUMENTATION.md#9-developer-onboarding)
 4. Explore [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) to understand data model
@@ -81,7 +81,7 @@ Understand the big picture:
 Deploy to production:
 
 1. [TECHNICAL_DOCUMENTATION.md - Section 11](./TECHNICAL_DOCUMENTATION.md#11-deployment-guide)
-2. [README.md - Deployment](./README.md#-deployment)
+2. [README.md - Deployment](./../README.md#-deployment)
 
 ### For API Consumers
 
@@ -377,4 +377,4 @@ accounting-system/
 
 ---
 
-**Start your journey with [README.md](./README.md) →**
+**Start your journey with [README.md](./../README.md) →**

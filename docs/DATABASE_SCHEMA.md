@@ -133,12 +133,12 @@ This document provides a detailed Entity Relationship Diagram (ERD) for the acco
                                                  │ N
                                                  │
                                                  │ 1
-                                         ┌───────┴──────┐
-                                         │   modules    │
-                                         ├──────────────┤
-                                         │ PK: id       │
-                                         │ UK: module_key│
-                                         └──────────────┘
+                                         ┌───────┴────────┐
+                                         │     modules    │
+                                         ├────────────────┤
+                                         │ PK: id         │
+                                         │ UK: module_key │
+                                         └────────────────┘
 ```
 
 ### 2. Inventory & Product Management
@@ -165,15 +165,15 @@ This document provides a detailed Entity Relationship Diagram (ERD) for the acco
                        │ 1
        ┌───────────────┼───────────────┐
        │ N             │ N             │ N
-┌──────┴──────┐  ┌─────┴─────┐  ┌─────┴────────────┐
-│ purchases   │  │invoice_items│ │inventory_costing │
-├─────────────┤  ├───────────┤  ├──────────────────┤
-│ PK: id      │  │ PK: id    │  │ PK: id           │
-│ FK: product │  │ FK: product│ │ FK: product_id   │
-│ FK: supplier│  │ FK: invoice│ │    transaction_  │
-│ FK: user_id │  │   quantity │  │    type          │
-│   quantity  │  │   subtotal │  │    unit_cost     │
-└─────────────┘  └───────────┘  └──────────────────┘
+┌──────┴──────┐  ┌─────┴───────┐  ┌─────┴────────────┐
+│ purchases   │  │invoice_items│  │inventory_costing │
+├─────────────┤  ├─────────────┤  ├──────────────────┤
+│ PK: id      │  │ PK: id      │  │ PK: id           │
+│ FK: product │  │ FK: product │  │ FK: product_id   │
+│ FK: supplier│  │ FK: invoice │  │    transaction_  │
+│ FK: user_id │  │   quantity  │  │    type          │
+│   quantity  │  │   subtotal  │  │    unit_cost     │
+└─────────────┘  └─────────────┘  └──────────────────┘
 ```
 
 ### 3. Sales & Invoicing Flow
@@ -200,17 +200,17 @@ This document provides a detailed Entity Relationship Diagram (ERD) for the acco
                       │    is_reversed    │
                       └────────┬──────────┘
                                │ 1
-               ┌───────────────┼──────────────┐
-               │ N             │ 1            │ 1
-      ┌────────┴───────┐  ┌────┴──────────┐  ┌┴──────────────┐
-      │ invoice_items  │  │zatca_einvoices│  │ar_transactions│
-      ├────────────────┤  ├───────────────┤  ├───────────────┤
-      │ PK: id         │  │ PK: id        │  │ PK: id        │
-      │ FK: invoice_id │  │ FK: invoice_id│  │ FK: customer  │
-      │ FK: product_id │  │    uuid       │  │    type       │
-      │    quantity    │  │    qr_code    │  │    amount     │
-      │    unit_price  │  │    invoice_hash│ │   voucher_#   │
-      └────────────────┘  └───────────────┘  └───────────────┘
+               ┌───────────────┼────────────────┐
+               │ N             │ 1              │ 1
+      ┌────────┴───────┐  ┌────┴────────────┐  ┌┴──────────────┐
+      │ invoice_items  │  │zatca_einvoices  │  │ar_transactions│
+      ├────────────────┤  ├─────────────────┤  ├───────────────┤
+      │ PK: id         │  │ PK: id          │  │ PK: id        │
+      │ FK: invoice_id │  │ FK: invoice_id  │  │ FK: customer  │
+      │ FK: product_id │  │    uuid         │  │    type       │
+      │    quantity    │  │    qr_code      │  │    amount     │
+      │    unit_price  │  │    invoice_hash │  │   voucher_#   │
+      └────────────────┘  └─────────────────┘  └───────────────┘
 ```
 
 ### 4. Purchases & Accounts Payable
@@ -308,30 +308,30 @@ This document provides a detailed Entity Relationship Diagram (ERD) for the acco
                            │ 1               │
         ┌──────────────────┼─────────────────┼────────────────┐
         │ N                │ N               │ N              │ N
-┌───────┴────────┐  ┌──────┴──────┐  ┌──────┴──────┐  ┌──────┴──────┐
-│employee_       │  │employee_    │  │employee_    │  │payroll_items│
-│documents       │  │allowances   │  │deductions   │  │             │
-├────────────────┤  ├─────────────┤  ├─────────────┤  ├─────────────┤
-│PK: id          │  │PK: id       │  │PK: id       │  │PK: id       │
-│FK: employee_id │  │FK: employee │  │FK: employee │  │FK: employee │
-│   document_url │  │   type      │  │   type      │  │FK: cycle_id │
-└────────────────┘  │   amount    │  │   amount    │  │  net_amount │
-                    └─────────────┘  └─────────────┘  │  status     │
-                                                      └──────┬──────┘
-                                                             │ 1
-                            ┌────────────────────────────────┤
-                            │ N                              │ 1
-                    ┌───────┴────────────┐         ┌─────────┴─────────┐
-                    │payroll_transactions│         │  payroll_cycles   │
-                    ├────────────────────┤         ├───────────────────┤
-                    │PK: id              │         │PK: id             │
-                    │FK: payroll_item_id │         │   cycle_name      │
-                    │   amount           │         │   cycle_type      │
-                    │   payment_method   │         │   status          │
-                    │   voucher_number   │         │   approval_level  │
-                    └────────────────────┘         │   total_amount    │
-                                                   │   voucher_number  │
-                                                   └───────────────────┘
+┌───────┴────────┐  ┌──────┴──────┐   ┌──────┴──────┐  ┌──────┴──────┐
+│employee_       │  │employee_    │   │employee_    │  │payroll_items│
+│documents       │  │allowances   │   │deductions   │  │             │
+├────────────────┤  ├─────────────┤   ├─────────────┤  ├─────────────┤
+│PK: id          │  │PK: id       │   │PK: id       │  │PK: id       │
+│FK: employee_id │  │FK: employee │   │FK: employee │  │FK: employee │
+│   document_url │  │   type      │   │   type      │  │FK: cycle_id │
+└────────────────┘  │   amount    │   │   amount    │  │  net_amount │
+                    └─────────────┘   └─────────────┘  │  status     │
+                                                       └──────┬──────┘
+                                                              │ 1
+                             ┌────────────────────────────────┤
+                             │ N                              │ 1
+                     ┌───────┴────────────┐         ┌─────────┴─────────┐
+                     │payroll_transactions│         │  payroll_cycles   │
+                     ├────────────────────┤         ├───────────────────┤
+                     │PK: id              │         │PK: id             │
+                     │FK: payroll_item_id │         │   cycle_name      │
+                     │   amount           │         │   cycle_type      │
+                     │   payment_method   │         │   status          │
+                     │   voucher_number   │         │   approval_level  │
+                     └────────────────────┘         │   total_amount    │
+                                                    │   voucher_number  │
+                                                    └───────────────────┘
 ```
 
 ### 7. Multi-Level Approval Workflow (Payroll)
@@ -513,23 +513,23 @@ Currency-enabled tables:
 │    created_at    │
 └──────────────────┘
 
-┌──────────────────┐
-│document_sequences│
-├──────────────────┤
-│ PK: id           │
-│ UK: document_type│
-│    prefix        │
-│    current_number│
-│    padding       │
-└──────────────────┘
+┌───────────────────┐
+│document_sequences │
+├───────────────────┤
+│ PK: id            │
+│ UK: document_type │
+│    prefix         │
+│    current_number │
+│    padding        │
+└───────────────────┘
 
-┌──────────────────┐
-│    settings      │
-├──────────────────┤
-│ PK: id           │
-│ UK: key          │
-│    value         │
-└──────────────────┘
+┌───────────────────┐
+│     settings      │
+├───────────────────┤
+│ PK: id            │
+│ UK: key           │
+│    value          │
+└───────────────────┘
 ```
 
 ---
